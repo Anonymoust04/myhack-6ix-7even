@@ -4,6 +4,7 @@ import { useAuth } from '../App.jsx'
 import { api } from '../api.js'
 import toast from 'react-hot-toast'
 import MatchCard from '../components/MatchCard.jsx'
+import MatchExplainerModal from '../components/MatchExplainerModal.jsx'
 
 function Navbar() {
   const { user, logout } = useAuth()
@@ -37,6 +38,7 @@ export default function ParticipantDashboard() {
   const [browseLoading, setBrowseLoading] = useState(false)
   const [profile, setProfile] = useState(null)
   const [profileLoading, setProfileLoading] = useState(false)
+  const [explainingRelId, setExplainingRelId] = useState(null)
 
   useEffect(() => {
     if (!user?.id) return
@@ -112,6 +114,7 @@ export default function ParticipantDashboard() {
   return (
     <div className="app-shell">
       <Navbar />
+      <MatchExplainerModal relationshipId={explainingRelId} onClose={() => setExplainingRelId(null)} />
       <div className="container" style={{ padding: '32px 24px', maxWidth: '860px', margin: '0 auto' }}>
 
         {/* Header */}
@@ -182,6 +185,7 @@ export default function ParticipantDashboard() {
                     match={rec}
                     onRegister={() => handleRegister(rec.to_entity.id, rec.id)}
                     registering={registering === rec.id}
+                    onExplain={() => setExplainingRelId(rec.id)}
                   />
                 ))}
 
@@ -224,6 +228,11 @@ export default function ParticipantDashboard() {
                             ))}
                           </div>
                         )}
+                        <div style={{ marginTop: '12px' }}>
+                          <button className="btn btn-secondary btn-sm" onClick={() => setExplainingRelId(rec.id)}>
+                            🤖 How was this matched?
+                          </button>
+                        </div>
                       </div>
                     ))}
                   </div>

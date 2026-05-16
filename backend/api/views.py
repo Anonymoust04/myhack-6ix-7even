@@ -552,6 +552,15 @@ def get_mentor_recommendations(request, mentor_id):
 
 
 @api_view(["GET"])
+def explain_match(request, rel_id):
+    """Return the 3-stage matching pipeline breakdown for a single relationship."""
+    result = agent.explain_match(rel_id)
+    if "error" in result:
+        return Response(result, status=status.HTTP_404_NOT_FOUND)
+    return Response(result)
+
+
+@api_view(["GET"])
 def get_participant_profile(request, participant_id):
     """Fetch a participant's full profile."""
     participant = fs.get_participant(participant_id)

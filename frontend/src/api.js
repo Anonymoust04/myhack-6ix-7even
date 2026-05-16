@@ -52,4 +52,7 @@ export const api = {
 
   // Account lookup
   findAccount: (name, role) => request('GET', `/find-account?name=${encodeURIComponent(name)}&role=${role}`),
+
+  // Match explainer
+  explainMatch: (relId) => request('GET', `/explain-match/${relId}`),
 }

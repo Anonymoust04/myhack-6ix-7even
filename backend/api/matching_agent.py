@@ -423,3 +423,161 @@ def get_recommendations_for_participant(participant_id: str) -> dict:
         fs.update_participant(participant_id, {"ai_summary": summary})
 
     return {"summary": summary, "recommendations": programme_recommendations, "mentor_recommendations": mentor_recommendations}
+
+
+def _cosine_similarity(a: list, b: list) -> float:
+    """Cosine similarity between two equal-length vectors."""
+    if not a or not b or len(a) != len(b):
+        return 0.0
+    dot = sum(x * y for x, y in zip(a, b))
+    na = sum(x * x for x in a) ** 0.5
+    nb = sum(y * y for y in b) ** 0.5
+    if na == 0 or nb == 0:
+        return 0.0
+    return dot / (na * nb)
+
+
+def _structured_signals(entity: dict, candidate: dict, candidate_type: str) -> dict:
+    """
+    Compute the per-signal pre-filter breakdown between two entities.
+    Returns which signals matched and the overlapping values for each.
+    """
+    e_skills = set(s.lower() for s in entity.get("skills", []) + entity.get("expertise", []))
+    e_interests = set(s.lower() for s in entity.get("interests", []))
+    e_location = (entity.get("location") or "").lower()
+    e_level = entity.get("experience_level", "")
+
+    signals = []
+
+    if candidate_type == "programme":
+        c_skills = set(s.lower() for s in candidate.get("required_skills", candidate.get("focus", [])))
+        c_focus = set(s.lower() for s in candidate.get("focus", []))
+        c_location = (candidate.get("location") or "").lower()
+        c_difficulty = candidate.get("difficulty", "")
+
+        skill_overlap = sorted(e_skills & c_skills)
+        signals.append({
+            "name": "Skills ↔ Required Skills",
+            "matched": bool(skill_overlap),
+            "overlap": skill_overlap,
+            "detail": f"{len(skill_overlap)} of your skills match this programme's needs" if skill_overlap else "No direct skill overlap",
+        })
+
+        interest_overlap = sorted(e_interests & c_focus)
+        signals.append({
+            "name": "Interests ↔ Programme Focus",
+            "matched": bool(interest_overlap),
+            "overlap": interest_overlap,
+            "detail": f"{len(interest_overlap)} interest(s) align with programme focus" if interest_overlap else "No interest overlap with programme focus",
+        })
+
+        loc_match = bool(e_location and e_location == c_location)
+        signals.append({
+            "name": "Location",
+            "matched": loc_match,
+            "overlap": [e_location] if loc_match else [],
+            "detail": f"Both in {entity.get('location')}" if loc_match else f"You: {entity.get('location') or '—'} · Programme: {candidate.get('location') or '—'}",
+        })
+
+        level_match = bool(e_level and e_level == c_difficulty)
+        signals.append({
+            "name": "Experience Level ↔ Difficulty",
+            "matched": level_match,
+            "overlap": [e_level] if level_match else [],
+            "detail": f"Both {e_level}" if level_match else f"You: {e_level or '—'} · Programme: {c_difficulty or '—'}",
+        })
+
+    elif candidate_type == "mentor":
+        c_expertise = set(s.lower() for s in candidate.get("expertise", []))
+
+        skill_overlap = sorted(e_skills & c_expertise)
+        signals.append({
+            "name": "Skills ↔ Mentor Expertise",
+            "matched": bool(skill_overlap),
+            "overlap": skill_overlap,
+            "detail": f"{len(skill_overlap)} skill(s) match mentor expertise" if skill_overlap else "No direct skill overlap with mentor",
+        })
+
+        interest_overlap = sorted(e_interests & c_expertise)
+        signals.append({
+            "name": "Interests ↔ Mentor Expertise",
+            "matched": bool(interest_overlap),
+            "overlap": interest_overlap,
+            "detail": f"{len(interest_overlap)} interest(s) align with mentor's expertise" if interest_overlap else "No interest overlap with mentor expertise",
+        })
+
+    return {
+        "signals": signals,
+        "passed": sum(1 for s in signals if s["matched"]),
+        "total": len(signals),
+    }
+
+
+def explain_match(relationship_id: str) -> dict:
+    """
+    Reconstruct the 3-stage matching pipeline for a single relationship.
+    Returns: from_entity, to_entity, pre_filter signals, vector similarity,
+    and the stored Groq reasoning + score.
+    """
+    rel = fs.get_relationship(relationship_id)
+    if not rel:
+        return {"error": "Relationship not found"}
+
+    from_info = rel.get("from_entity", {})
+    to_info = rel.get("to_entity", {})
+
+    # Fetch entities WITH embeddings (so we can recompute vector similarity)
+    from_type = from_info.get("type")
+    to_type = to_info.get("type")
+
+    from_entity = None
+    to_entity = None
+    if from_type == "participant":
+        from_entity = fs._get_participant_with_embedding(from_info["id"])
+    if to_type == "programme":
+        # Use raw stream to keep embedding
+        from firebase_admin import firestore as fs_admin
+        doc = fs_admin.client().collection("programmes").document(to_info["id"]).get()
+        to_entity = {"id": doc.id, **doc.to_dict()} if doc.exists else None
+    elif to_type == "mentor":
+        from firebase_admin import firestore as fs_admin
+        doc = fs_admin.client().collection("mentors").document(to_info["id"]).get()
+        to_entity = {"id": doc.id, **doc.to_dict()} if doc.exists else None
+
+    if not from_entity or not to_entity:
+        return {"error": "Could not load entities"}
+
+    # Stage 1: structured signals
+    pre_filter = _structured_signals(from_entity, to_entity, to_type)
+
+    # Stage 2: vector similarity
+    from_emb = list(from_entity.get("embedding") or [])
+    to_emb = list(to_entity.get("embedding") or [])
+    vector_similarity = _cosine_similarity(from_emb, to_emb)
+
+    # Strip embeddings before returning
+    from_clean = {k: v for k, v in from_entity.items() if k != "embedding"}
+    to_clean = {k: v for k, v in to_entity.items() if k != "embedding"}
+
+    return {
+        "relationship_id": relationship_id,
+        "from_entity": from_clean,
+        "to_entity": to_clean,
+        "to_type": to_type,
+        "pipeline": {
+            "stage_1_pre_filter": pre_filter,
+            "stage_2_vector_similarity": {
+                "score": round(vector_similarity, 4),
+                "score_percent": round(vector_similarity * 100, 1),
+                "method": "Cosine similarity on 768-dim Gemini embeddings",
+            },
+            "stage_3_llm_scoring": {
+                "score": rel.get("match_score"),
+                "score_percent": round((rel.get("match_score") or 0) * 100, 1),
+                "reasoning": rel.get("reasoning"),
+                "fit_factors": rel.get("fit_factors", []),
+                "warnings": rel.get("warnings", []),
+                "model": "Groq llama-3.3-70b-versatile",
+            },
+        },
+    }

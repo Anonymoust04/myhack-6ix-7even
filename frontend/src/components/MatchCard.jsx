@@ -5,8 +5,9 @@
  *   match      — relationship object with match_score, reasoning, fit_factors, warnings, programme
  *   onRegister — callback when user clicks Register
  *   registering — bool, shows loading state on this card's button
+ *   onExplain  — callback when user clicks "How was this matched?"
  */
-export default function MatchCard({ match, onRegister, registering }) {
+export default function MatchCard({ match, onRegister, registering, onExplain }) {
   const score = match.match_score || 0
   const scoreClass = score >= 0.8 ? 'high' : score >= 0.65 ? 'medium' : 'low'
   const scorePercent = Math.round(score * 100)
@@ -69,17 +70,24 @@ export default function MatchCard({ match, onRegister, registering }) {
         <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
           {prog.capacity && `Capacity: ${prog.capacity} participants`}
         </div>
-        {match.status === 'recommended' && (
-          <button className="btn btn-primary btn-sm" onClick={onRegister} disabled={registering}>
-            {registering ? 'Registering...' : 'Register →'}
-          </button>
-        )}
-        {match.status === 'registered' && (
-          <span className="status-badge pending">Pending approval</span>
-        )}
-        {match.status === 'approved' && (
-          <span className="status-badge assigned">Enrolled ✓</span>
-        )}
+        <div className="flex gap-8 items-center">
+          {onExplain && (
+            <button className="btn btn-secondary btn-sm" onClick={onExplain}>
+              🤖 How was this matched?
+            </button>
+          )}
+          {match.status === 'recommended' && (
+            <button className="btn btn-primary btn-sm" onClick={onRegister} disabled={registering}>
+              {registering ? 'Registering...' : 'Register →'}
+            </button>
+          )}
+          {match.status === 'registered' && (
+            <span className="status-badge pending">Pending approval</span>
+          )}
+          {match.status === 'approved' && (
+            <span className="status-badge assigned">Enrolled ✓</span>
+          )}
+        </div>
       </div>
     </div>
   )

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../App.jsx'
 import { api } from '../api.js'
 import toast from 'react-hot-toast'
+import MatchExplainerModal from '../components/MatchExplainerModal.jsx'
 
 function Navbar() {
   const { user, logout } = useAuth()
@@ -28,6 +29,7 @@ export default function MentorDashboard() {
   const [outcomeForm, setOutcomeForm] = useState({ type: 'project_completed', details: '' })
   const [profile, setProfile] = useState(null)
   const [profileLoading, setProfileLoading] = useState(false)
+  const [explainingRelId, setExplainingRelId] = useState(null)
 
   useEffect(() => {
     if (!user?.id) return
@@ -72,6 +74,7 @@ export default function MentorDashboard() {
   return (
     <div className="app-shell">
       <Navbar />
+      <MatchExplainerModal relationshipId={explainingRelId} onClose={() => setExplainingRelId(null)} />
       <div className="container" style={{ padding: '32px 24px', maxWidth: '860px', margin: '0 auto' }}>
         <div className="page-header">
           <div className="page-title">Mentor Dashboard</div>
@@ -173,11 +176,15 @@ export default function MentorDashboard() {
                       </div>
                     </div>
                   ) : (
-                    <div className="flex gap-8">
+                    <div className="flex gap-8 items-center">
                       <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
                         {rec.engagement?.hours || 0}h mentored · {rec.engagement?.meetings || 0} meetings
                       </div>
                       <button className="btn btn-secondary btn-sm" style={{ marginLeft: 'auto' }}
+                        onClick={() => setExplainingRelId(rec.id)}>
+                        🤖 How was this matched?
+                      </button>
+                      <button className="btn btn-secondary btn-sm"
                         onClick={() => setLoggingId(rec.id)}>
                         + Log Outcome
                       </button>

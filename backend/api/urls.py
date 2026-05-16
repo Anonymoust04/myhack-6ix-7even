@@ -39,4 +39,7 @@ urlpatterns = [
     # ── Profile ──────────────────────────────────
     path("participant/<str:participant_id>", views.get_participant_profile, name="participant-profile"),
     path("mentor/<str:mentor_id>", views.get_mentor_profile, name="mentor-profile"),
+
+    # ── Match explainer ──────────────────────────
+    path("explain-match/<str:rel_id>", views.explain_match, name="explain-match"),
 ]
