@@ -42,7 +42,7 @@ Regional innovation ecosystems (accelerators, startup hubs, networks) rely on **
 
 Build an AI-enabled platform that automates and manages ecosystem relationships as reusable, programmable entities — serving both administrators and participants.
 
-**One sentence:** Participants and admins join the platform → AI recommends programmes, mentors, and partners based on fit → admins govern and approve → system tracks outcomes → AI gets smarter for next time.
+**One sentence:** Participants and admins join the platform → AI recommends programmes, mentors, and partners based on fit → participants can be interested/not interested → system tracks outcomes → AI gets smarter for next time.
 
 The platform:
 
