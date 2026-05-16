@@ -23,6 +23,8 @@ export default function MentorDashboard() {
   const { user } = useAuth()
   const [assignments, setAssignments] = useState([])
   const [loading, setLoading] = useState(true)
+  const [loggingId, setLoggingId] = useState(null)
+  const [outcomeForm, setOutcomeForm] = useState({ type: 'project_completed', details: '' })
 
   useEffect(() => {
     if (!user?.id) return
@@ -38,11 +40,20 @@ export default function MentorDashboard() {
   }, [user?.id])
 
   const handleLogOutcome = async (relId) => {
-    const details = prompt('Describe the outcome (e.g. "Completed pitch deck review")')
-    if (!details) return
+    if (!outcomeForm.details) return toast.error('Please describe the outcome')
     try {
-      await api.logOutcome({ relationship_id: relId, type: 'project_completed', details })
+      await api.logOutcome({ relationship_id: relId, type: outcomeForm.type, details: outcomeForm.details })
       toast.success('Outcome logged!')
+      setLoggingId(null)
+      setOutcomeForm({ type: 'project_completed', details: '' })
+      // Reload assignments to show new outcome
+      api.getMatches({ type: 'mentor_company' })
+        .then(matches => {
+          const mine = matches.filter(m =>
+            m.from_entity?.id === user.id && m.status === 'assigned'
+          )
+          setAssignments(mine)
+        })
     } catch (err) {
       toast.error(err.message)
     }
@@ -100,15 +111,37 @@ export default function MentorDashboard() {
                   </div>
                 )}
 
-                <div className="flex gap-8">
-                  <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                    {a.engagement?.hours || 0}h mentored · {a.engagement?.meetings || 0} meetings
+                {loggingId === a.id ? (
+                  <div style={{ background: 'var(--bg-secondary)', padding: '12px', borderRadius: '8px', marginTop: '12px' }}>
+                    <div className="form-group mb-8">
+                      <label className="form-label">Outcome Type</label>
+                      <select className="form-control" value={outcomeForm.type} onChange={e => setOutcomeForm(f => ({ ...f, type: e.target.value }))}>
+                        <option value="skills_gained">Skills Gained</option>
+                        <option value="project_completed">Project Completed</option>
+                        <option value="job_landed">Job Landed</option>
+                        <option value="connection_made">Connection Made</option>
+                      </select>
+                    </div>
+                    <div className="form-group mb-8">
+                      <label className="form-label">Details</label>
+                      <input className="form-control" value={outcomeForm.details} onChange={e => setOutcomeForm(f => ({ ...f, details: e.target.value }))} placeholder="Describe the outcome..." />
+                    </div>
+                    <div className="flex gap-8">
+                      <button className="btn btn-primary btn-sm" onClick={() => handleLogOutcome(a.id)}>Save</button>
+                      <button className="btn btn-secondary btn-sm" onClick={() => { setLoggingId(null); setOutcomeForm({ type: 'project_completed', details: '' }) }}>Cancel</button>
+                    </div>
                   </div>
-                  <button className="btn btn-secondary btn-sm" style={{ marginLeft: 'auto' }}
-                    onClick={() => handleLogOutcome(a.id)}>
-                    + Log Outcome
-                  </button>
-                </div>
+                ) : (
+                  <div className="flex gap-8">
+                    <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                      {a.engagement?.hours || 0}h mentored · {a.engagement?.meetings || 0} meetings
+                    </div>
+                    <button className="btn btn-secondary btn-sm" style={{ marginLeft: 'auto' }}
+                      onClick={() => setLoggingId(a.id)}>
+                      + Log Outcome
+                    </button>
+                  </div>
+                )}
               </div>
             ))}
           </div>

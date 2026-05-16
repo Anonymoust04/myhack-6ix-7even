@@ -14,7 +14,12 @@ export default function AnalyticsPanel() {
       setInsights(res.insights)
       setDataPoints(res.data_points || 0)
     } catch (err) {
-      toast.error(err.message)
+      const isQuotaError = (err) => err.message.includes('quota') || err.message.includes('429') || err.message.includes('ResourceExhausted')
+      if (isQuotaError(err)) {
+        toast.error('Gemini quota reached. Wait a minute and try again, or enable billing.')
+      } else {
+        toast.error(err.message)
+      }
     } finally {
       setLoading(false)
     }

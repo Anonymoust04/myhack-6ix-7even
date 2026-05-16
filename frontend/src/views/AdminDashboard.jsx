@@ -173,20 +173,35 @@ function RunMatchingTab() {
   const [matchType, setMatchType] = useState('participant_programme')
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState(null)
+  const [elapsed, setElapsed] = useState(0)
 
   useEffect(() => { api.listProgrammes().then(setProgrammes).catch(() => {}) }, [])
 
+  useEffect(() => {
+    if (!loading) return
+    const interval = setInterval(() => setElapsed(e => e + 1), 1000)
+    return () => clearInterval(interval)
+  }, [loading])
+
   const handleRun = async () => {
     setLoading(true)
+    setElapsed(0)
     setResult(null)
     try {
       const payload = { type: matchType }
       if (selectedProg) payload.programme_id = selectedProg
-      const res = await api.runMatching(payload)
-      setResult(res)
-      toast.success(`Matching complete! ${res.matched} relationships created.`)
-    } catch (err) {
-      toast.error(err.message)
+      const isQuotaError = (err) => err.message.includes('quota') || err.message.includes('429') || err.message.includes('ResourceExhausted')
+      try {
+        const res = await api.runMatching(payload)
+        setResult(res)
+        toast.success(`Matching complete! ${res.matched} relationships created.`)
+      } catch (err) {
+        if (isQuotaError(err)) {
+          toast.error('Gemini quota reached. Wait a minute and try again, or enable billing.')
+        } else {
+          toast.error(err.message)
+        }
+      }
     } finally {
       setLoading(false)
     }
@@ -217,6 +232,11 @@ function RunMatchingTab() {
             Running AI matching... (1–3 min)
           </> : '🤖 Run Matching'}
         </button>
+        {loading && (
+          <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '12px', textAlign: 'center' }}>
+            ⏱ {elapsed}s elapsed — AI is scoring all pairs...
+          </div>
+        )}
       </div>
       {result && (
         <div className="ai-summary-box mt-16 fade-in">

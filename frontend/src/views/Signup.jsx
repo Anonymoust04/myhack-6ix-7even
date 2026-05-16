@@ -17,6 +17,7 @@ export default function Signup() {
     name: '', type: 'student',
     skills: '', interests: '', goals: '',
     experience_level: 'beginner', location: '',
+    expertise: '', years: '', availability: '', bio: '',
   })
   const [createdId, setCreatedId] = useState(null)
 
@@ -28,21 +29,37 @@ export default function Signup() {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (!form.name || !form.location) return toast.error('Name and location are required')
     setLoading(true)
     try {
-      const payload = {
-        name: form.name,
-        type: form.type,
-        skills: parseList(form.skills),
-        interests: parseList(form.interests),
-        goals: parseList(form.goals),
-        experience_level: form.experience_level,
-        location: form.location,
+      if (role === 'participant') {
+        if (!form.name || !form.location) return toast.error('Name and location are required')
+        const payload = {
+          name: form.name,
+          type: form.type,
+          skills: parseList(form.skills),
+          interests: parseList(form.interests),
+          goals: parseList(form.goals),
+          experience_level: form.experience_level,
+          location: form.location,
+        }
+        const res = await api.registerParticipant(payload)
+        setCreatedId(res.id)
+        toast.success('Profile created!')
+      } else if (role === 'mentor') {
+        if (!form.name || !form.years) return toast.error('Name and years experience are required')
+        const payload = {
+          mentors: [{
+            name: form.name,
+            expertise: parseList(form.expertise),
+            years: parseInt(form.years) || 0,
+            availability: form.availability,
+            bio: form.bio,
+          }]
+        }
+        const res = await api.uploadMentors(payload)
+        setCreatedId(res.ids[0])
+        toast.success('Mentor profile created!')
       }
-      const res = await api.registerParticipant(payload)
-      setCreatedId(res.id)
-      toast.success('Profile created!')
       setStep(2)
     } catch (err) {
       toast.error(err.message)
@@ -53,7 +70,7 @@ export default function Signup() {
 
   const handleEnterApp = () => {
     login({ role, id: createdId, name: form.name })
-    navigate('/participant')
+    navigate(`/${role}`)
   }
 
   return (
@@ -99,7 +116,7 @@ export default function Signup() {
         )}
 
         {/* Step 1: Profile form */}
-        {step === 1 && (
+        {step === 1 && role === 'participant' && (
           <form onSubmit={handleSubmit} className="fade-in">
             <div className="section-title mb-8">Your Profile</div>
             <div className="section-subtitle">Help us match you to the right opportunities</div>
@@ -153,6 +170,49 @@ export default function Signup() {
               <input className="form-control" name="goals" value={form.goals} onChange={handleChange}
                 placeholder="Learn startup building, find co-founder, build projects" />
               <div className="tag-input-hint">Separate with commas</div>
+            </div>
+
+            <div className="flex gap-8 mt-8">
+              <button type="button" className="btn btn-secondary" onClick={() => setStep(0)}>Back</button>
+              <button type="submit" className="btn btn-primary w-full" disabled={loading} style={{ justifyContent: 'center' }}>
+                {loading ? 'Creating profile...' : 'Create Profile →'}
+              </button>
+            </div>
+          </form>
+        )}
+
+        {/* Step 1: Mentor form */}
+        {step === 1 && role === 'mentor' && (
+          <form onSubmit={handleSubmit} className="fade-in">
+            <div className="section-title mb-8">Your Mentor Profile</div>
+            <div className="section-subtitle">Help us match you with companies and participants</div>
+
+            <div className="form-group">
+              <label className="form-label">Full Name *</label>
+              <input className="form-control" name="name" value={form.name} onChange={handleChange} placeholder="Dr. Jane Smith" required />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Expertise</label>
+              <input className="form-control" name="expertise" value={form.expertise} onChange={handleChange}
+                placeholder="AI, fintech, regulatory compliance" />
+              <div className="tag-input-hint">Separate with commas</div>
+            </div>
+
+            <div className="grid-2">
+              <div className="form-group">
+                <label className="form-label">Years Experience *</label>
+                <input className="form-control" type="number" name="years" value={form.years} onChange={handleChange} placeholder="10" required />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Availability</label>
+                <input className="form-control" name="availability" value={form.availability} onChange={handleChange} placeholder="Q2-Q3 2026" />
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Bio</label>
+              <input className="form-control" name="bio" value={form.bio} onChange={handleChange} placeholder="Brief background and why you mentor..." />
             </div>
 
             <div className="flex gap-8 mt-8">
