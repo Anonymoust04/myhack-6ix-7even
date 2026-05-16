@@ -5,7 +5,7 @@ AI-powered ecosystem matching platform that automates relationships between part
 ## Stack
 - **Backend**: Django + Django REST Framework (Python)
 - **Frontend**: React + Vite
-- **AI**: Google Gemini API (embeddings + scoring + summaries)
+- **AI**: Vertex AI / Gemini (embeddings + scoring + summaries)
 - **Database**: Firestore (with built-in vector search)
 
 ## Setup
@@ -14,7 +14,7 @@ AI-powered ecosystem matching platform that automates relationships between part
 - Python 3.9+
 - Node.js 18+
 - Google Cloud project with Firestore enabled
-- Gemini API key
+- Vertex AI API enabled on your Google Cloud project
 
 ### Backend
 
@@ -73,9 +73,9 @@ App runs at http://localhost:5173 · Backend at http://localhost:8000
 ## Environment Variables
 
 ```
-GEMINI_API_KEY=               # From Google AI Studio
-FIREBASE_PROJECT_ID=          # Firebase project ID
+FIREBASE_PROJECT_ID=          # Firebase / GCP project ID
 FIREBASE_SERVICE_ACCOUNT_KEY= # Path to serviceAccountKey.json
+GOOGLE_CLOUD_LOCATION=        # Vertex AI region (e.g. us-central1)
 DJANGO_SECRET_KEY=            # Django secret key
 DEBUG=True
 ```

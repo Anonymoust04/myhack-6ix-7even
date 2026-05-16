@@ -1,26 +1,40 @@
 """
-Gemini API wrapper for EcoLink.
+Gemini API wrapper for EcoLink via Vertex AI.
 
-Uses the google-generativeai Python SDK for:
+Uses the google-genai Python SDK with Vertex AI backend for:
   - Embedding generation (profile vectorisation)
   - Match scoring + reasoning
   - Personalised summary generation
   - Analytics / cohort insights
+
+Auth: Uses service account credentials (serviceAccountKey.json) —
+      no API key required.
 """
 import os
 import json
 import time
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 from dotenv import load_dotenv
 from google.api_core import exceptions
 
 load_dotenv()
 
-genai.configure(api_key=os.environ["GEMINI_API_KEY"])
+# Point ADC to the Firebase service account key (reuse for Vertex AI)
+key_path = os.environ.get("FIREBASE_SERVICE_ACCOUNT_KEY", "./serviceAccountKey.json")
+if os.path.exists(key_path) and "GOOGLE_APPLICATION_CREDENTIALS" not in os.environ:
+    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = os.path.abspath(key_path)
+
+# Initialise Vertex AI client
+client = genai.Client(
+    vertexai=True,
+    project=os.environ.get("FIREBASE_PROJECT_ID"),
+    location=os.environ.get("GOOGLE_CLOUD_LOCATION", "us-central1"),
+)
 
 # Use the latest Flash model for speed in hackathon context
-_model = genai.GenerativeModel("gemini-2.0-flash")
-_embedding_model = "models/gemini-embedding-2"
+_generation_model = "gemini-2.0-flash"
+_embedding_model = "text-embedding-004"
 
 
 def retry_with_backoff(retries=3, backoff_in_seconds=2):
@@ -49,13 +63,15 @@ def generate_embedding(text: str) -> list[float]:
     Generate a vector embedding for a profile text.
     Used for Firestore vector search.
     """
-    result = genai.embed_content(
+    result = client.models.embed_content(
         model=_embedding_model,
-        content=text,
-        task_type="RETRIEVAL_DOCUMENT",
-        output_dimensionality=768,
+        contents=text,
+        config=types.EmbedContentConfig(
+            task_type="RETRIEVAL_DOCUMENT",
+            output_dimensionality=768,
+        ),
     )
-    return result["embedding"]
+    return result.embeddings[0].values
 
 
 def _clean_for_json(obj):
@@ -103,7 +119,10 @@ Respond ONLY with valid JSON in this exact format:
   "warnings": ["<any mismatch warnings, empty list if none>"]
 }}"""
 
-    response = _model.generate_content(prompt)
+    response = client.models.generate_content(
+        model=_generation_model,
+        contents=prompt,
+    )
     raw = response.text.strip()
 
     # Strip markdown code fences if present
@@ -140,7 +159,10 @@ Write a warm, encouraging 3-sentence personalised summary explaining:
 
 Keep it personal, specific, and under 80 words. Do not use bullet points."""
 
-    response = _model.generate_content(prompt)
+    response = client.models.generate_content(
+        model=_generation_model,
+        contents=prompt,
+    )
     return response.text.strip()
 
 
@@ -162,5 +184,8 @@ Generate 3-5 actionable insights for programme administrators. Focus on:
 
 Format as a clear numbered list. Be specific with data points where possible."""
 
-    response = _model.generate_content(prompt)
+    response = client.models.generate_content(
+        model=_generation_model,
+        contents=prompt,
+    )
     return response.text.strip()
