@@ -1,81 +1,88 @@
-# EcoLink AI
+# 🌿 EcoLink: AI-Powered Innovation Ecosystem
 
-AI-powered ecosystem matching platform that automates relationships between participants, mentors, companies, and programmes.
+EcoLink is a next-generation platform designed to bridge the gap between participants, mentors, and corporate partners within innovation ecosystems. By leveraging **Gemini 2.0 Flash** and **Firestore Vector Search**, EcoLink identifies hidden synergies and automates the matching process with unprecedented accuracy.
 
-## Stack
-- **Backend**: Django + Django REST Framework (Python)
-- **Frontend**: React + Vite
-- **AI**: Google Gemini API (embeddings + scoring + summaries)
-- **Database**: Firestore (with built-in vector search)
+## 🚀 Key Features
 
-## Setup
+- **🧠 Hybrid AI Matching**: Combines semantic vector embeddings (semantic similarity) with Gemini's qualitative reasoning (logical fit).
+- **📈 Personalised AI Dashboards**: Every user receives a warm, LLM-generated summary explaining their ecosystem fit and recommended next steps.
+- **🛡️ Vector-First Architecture**: Powered by Cloud Firestore's native vector indexing for millisecond-latency profile retrieval.
+- **📊 Predictive Analytics**: Historical outcome analysis allows the platform to "learn" which types of pairings result in funding or skill acquisition.
 
-### Prerequisites
+---
+
+## 🛠 Tech Stack
+
+- **Frontend**: React (Vite) + Vanilla CSS (Glassmorphism UI)
+- **Backend**: Django REST Framework
+- **AI/LLM**: Google Gemini 2.0 Flash (`gemini-2.0-flash`)
+- **Embeddings**: `gemini-embedding-2` (768 Dimensions)
+- **Database**: Google Cloud Firestore (Native Mode)
+- **Auth**: Firebase Authentication (Simulated for Demo)
+
+---
+
+## 🚦 Getting Started
+
+### 1. Prerequisites
 - Python 3.9+
 - Node.js 18+
-- Google Cloud project with Firestore enabled
-- Gemini API key
+- A Google Gemini API Key ([Get one here](https://aistudio.google.com/))
+- A Firebase Service Account Key (`serviceAccountKey.json`)
 
-### Backend
-
+### 2. Backend Setup
 ```bash
 cd backend
-python3 -m venv venv
-source venv/bin/activate
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
+```
 
-# Copy and fill in your credentials
-cp .env.example .env
+Create a `.env` file in the `backend/` directory:
+```env
+GEMINI_API_KEY=your_key_here
+FIREBASE_PROJECT_ID=your_project_id
+FIREBASE_SERVICE_ACCOUNT_KEY=./serviceAccountKey.json
+```
 
-# Put your Firebase service account key here
-# Download from: Firebase Console > Project Settings > Service Accounts
-mv ~/Downloads/your-key.json serviceAccountKey.json
-
-# Seed demo data
+### 3. Database Seeding (Crucial for Demo)
+Populate the ecosystem with participants, mentors, and historical outcomes:
+```bash
 python manage.py seed
+```
 
-# Run the server
+### 4. Running the App
+**Backend:**
+```bash
 python manage.py runserver
 ```
 
-### Frontend
-
+**Frontend:**
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
 
-App runs at http://localhost:5173 · Backend at http://localhost:8000
+---
 
-## Demo Accounts (no setup needed)
-| Role | Login |
-|------|-------|
-| Participant | Click "Participant — Sarah Tan (Demo)" |
-| Admin | Click "Admin (Demo)" |
-| Mentor | Click "Mentor — Priya Ramasamy (Demo)" |
+## 💡 Demo Guide
 
-## API Endpoints
+For the best hackathon presentation experience, use the **"One-Click Demo"** buttons on the login page:
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/register-participant` | Register participant + generate embedding |
-| GET | `/api/recommendations/<id>` | Get AI programme recommendations |
-| POST | `/api/register-programme` | Express interest in a programme |
-| POST | `/api/create-programme` | Admin: create programme |
-| POST | `/api/upload-mentors` | Admin: batch upload mentors |
-| POST | `/api/run-matching` | Admin: trigger AI matching agent |
-| GET | `/api/matches` | Admin: fetch ranked matches |
-| POST | `/api/assign` | Admin: assign/reject a match |
-| GET | `/api/analytics` | Admin: Gemini cohort insights |
-| POST | `/api/outcomes` | Log a relationship outcome |
+1.  **Participant Dashboard**: See the **AI-Personalised Summary** and ranked programme recommendations.
+2.  **Admin Dashboard**: Click **"Trigger AI Matching"** to see the system run the vector search + Gemini scoring loop in real-time.
+3.  **Analytics**: View the **Gemini-Generated Cohort Insights** derived from historical ecosystem data.
 
-## Environment Variables
+---
 
-```
-GEMINI_API_KEY=               # From Google AI Studio
-FIREBASE_PROJECT_ID=          # Firebase project ID
-FIREBASE_SERVICE_ACCOUNT_KEY= # Path to serviceAccountKey.json
-DJANGO_SECRET_KEY=            # Django secret key
-DEBUG=True
-```
+## 🧬 Matching Algorithm Explained
+
+EcoLink uses a **Three-Stage Pipeline**:
+1.  **Vector Retrieval**: The system uses `gemini-embedding-2` to convert profiles into 768-dimensional vectors. It then performs a `find_nearest` search in Firestore using **Cosine Distance**.
+2.  **Qualitative Scoring**: The top 10 candidates are sent to **Gemini 2.0 Flash** along with the context of historical successful matches.
+3.  **Reasoning Generation**: Gemini produces a match score (0-1) and a natural language explanation for why the match was made.
+
+---
+
+Built with ❤️ for **MyHack 2026** using Google Cloud & Gemini.
