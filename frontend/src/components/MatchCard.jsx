@@ -1,0 +1,86 @@
+/**
+ * MatchCard — displays a single AI-recommended programme match.
+ *
+ * Props:
+ *   match      — relationship object with match_score, reasoning, fit_factors, warnings, programme
+ *   onRegister — callback when user clicks Register
+ *   registering — bool, shows loading state on this card's button
+ */
+export default function MatchCard({ match, onRegister, registering }) {
+  const score = match.match_score || 0
+  const scoreClass = score >= 0.8 ? 'high' : score >= 0.65 ? 'medium' : 'low'
+  const scorePercent = Math.round(score * 100)
+  const prog = match.programme || {}
+
+  return (
+    <div className="match-card fade-in">
+      <div className="match-card-header">
+        <div>
+          <div className="match-card-title">
+            {prog.type === 'hackathon'    ? '⚡' :
+             prog.type === 'bootcamp'     ? '🚀' :
+             prog.type === 'accelerator'  ? '📈' : '🎓'}
+            {' '}{prog.name || match.to_entity?.id}
+          </div>
+          <div className="match-card-meta">
+            {prog.type && <span style={{ textTransform: 'capitalize' }}>{prog.type}</span>}
+            {prog.location && <> · {prog.location}</>}
+            {prog.difficulty && <> · <span style={{ textTransform: 'capitalize' }}>{prog.difficulty}</span></>}
+            {prog.dates?.start && <> · {prog.dates.start}</>}
+          </div>
+        </div>
+        <div className="flex items-center gap-8">
+          <div className={`score-pill ${scoreClass}`}>
+            {scorePercent >= 80 ? '✦' : scorePercent >= 65 ? '◆' : '◇'} {scorePercent}% fit
+          </div>
+        </div>
+      </div>
+
+      {/* Reasoning */}
+      <div className="match-reasoning">{match.reasoning}</div>
+
+      {/* Fit factors */}
+      {match.fit_factors?.length > 0 && (
+        <div className="fit-factors">
+          {match.fit_factors.map(f => (
+            <span key={f} className="fit-tag">✓ {f.replace(/_/g, ' ')}</span>
+          ))}
+          {match.warnings?.map(w => (
+            <span key={w} className="warning-tag">⚠ {w}</span>
+          ))}
+        </div>
+      )}
+
+      {/* Focus tags */}
+      {prog.focus?.length > 0 && (
+        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '14px' }}>
+          {prog.focus.map(f => (
+            <span key={f} style={{
+              padding: '2px 8px', borderRadius: '20px', fontSize: '11px',
+              background: 'rgba(139,92,246,0.1)', color: 'var(--purple)',
+              border: '1px solid rgba(139,92,246,0.2)',
+            }}>{f}</span>
+          ))}
+        </div>
+      )}
+
+      {/* Register button */}
+      <div className="flex justify-between items-center">
+        <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+          {prog.capacity && `Capacity: ${prog.capacity} participants`}
+        </div>
+        {match.status === 'recommended' && (
+          <button className="btn btn-primary btn-sm" onClick={onRegister} disabled={registering}>
+            {registering ? 'Registering...' : 'Register →'}
+          </button>
+        )}
+        {match.status === 'registered' && (
+          <span className="status-badge pending">Pending approval</span>
+        )}
+        {match.status === 'approved' && (
+          <span className="status-badge assigned">Enrolled ✓</span>
+        )}
+      </div>
+    </div>
+  )
+}
