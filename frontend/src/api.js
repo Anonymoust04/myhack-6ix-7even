@@ -55,4 +55,13 @@ export const api = {
 
   // Match explainer
   explainMatch: (relId) => request('GET', `/explain-match/${relId}`),
+
+  // Programme detail
+  getProgrammeDetail: (programmeId) => request('GET', `/programme/${programmeId}`),
+
+  // Mentor connection flow
+  requestMentor:     (data) => request('POST', '/request-mentor', data),
+  respondToRequest:  (data) => request('POST', '/respond-to-request', data),
+  sendMessage:       (data) => request('POST', '/send-message', data),
+  submitMatchFeedback: (data) => request('POST', '/match-feedback', data),
 }

@@ -215,6 +215,18 @@ def log_outcome(rel_id: str, outcome: dict):
     rel_ref.update({"outcomes": firestore.ArrayUnion([outcome])})
 
 
+def append_message(rel_id: str, message: dict):
+    db.collection("relationships").document(rel_id).update(
+        {"messages": firestore.ArrayUnion([message])}
+    )
+
+
+def append_feedback(rel_id: str, feedback: dict):
+    db.collection("relationships").document(rel_id).update(
+        {"feedback": firestore.ArrayUnion([feedback])}
+    )
+
+
 # ──────────────────────────────────────────────
 # INTEREST REQUESTS
 # ──────────────────────────────────────────────
@@ -301,5 +313,11 @@ def get_user(user_id: str) -> Optional[dict]:
 # ──────────────────────────────────────────────
 
 def get_completed_relationships() -> list[dict]:
-    """Return all completed relationships (with outcomes) for analytics."""
-    return get_relationships({"status": "completed"})
+    """
+    Relationships the matching LLM should learn from:
+    completed ones (with outcomes) plus any relationship with user feedback.
+    """
+    completed = get_relationships({"status": "completed"})
+    all_rels = get_relationships()
+    with_feedback = [r for r in all_rels if r.get("feedback") and r.get("status") != "completed"]
+    return completed + with_feedback

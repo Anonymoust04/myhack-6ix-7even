@@ -7,7 +7,8 @@
  *   registering — bool, shows loading state on this card's button
  *   onExplain  — callback when user clicks "How was this matched?"
  */
-export default function MatchCard({ match, onRegister, registering, onExplain }) {
+export default function MatchCard({ match, onRegister, registering, onExplain, onFeedback, feedbackPending, onOpenDetail }) {
+  const myFeedback = match.feedback?.find(f => f.sender === 'participant')
   const score = match.match_score || 0
   const scoreClass = score >= 0.8 ? 'high' : score >= 0.65 ? 'medium' : 'low'
   const scorePercent = Math.round(score * 100)
@@ -65,16 +66,34 @@ export default function MatchCard({ match, onRegister, registering, onExplain })
         </div>
       )}
 
-      {/* Register button */}
-      <div className="flex justify-between items-center">
+      {/* Action row */}
+      <div className="flex justify-between items-center" style={{ flexWrap: 'wrap', gap: '8px' }}>
         <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
           {prog.capacity && `Capacity: ${prog.capacity} participants`}
         </div>
-        <div className="flex gap-8 items-center">
+        <div className="flex gap-8 items-center" style={{ flexWrap: 'wrap' }}>
+          {onOpenDetail && (
+            <button className="btn btn-secondary btn-sm" onClick={onOpenDetail}>
+              👁 View details
+            </button>
+          )}
           {onExplain && (
             <button className="btn btn-secondary btn-sm" onClick={onExplain}>
               🤖 How was this matched?
             </button>
+          )}
+          {onFeedback && !myFeedback && (
+            <div className="flex gap-8">
+              <button className="btn btn-secondary btn-sm" disabled={feedbackPending === 'up'}
+                onClick={() => onFeedback('up')} title="Useful match">👍</button>
+              <button className="btn btn-secondary btn-sm" disabled={feedbackPending === 'down'}
+                onClick={() => onFeedback('down')} title="Not a good match">👎</button>
+            </div>
+          )}
+          {myFeedback && (
+            <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+              You said {myFeedback.thumbs === 'up' ? '👍' : '👎'}
+            </span>
           )}
           {match.status === 'recommended' && (
             <button className="btn btn-primary btn-sm" onClick={onRegister} disabled={registering}>

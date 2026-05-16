@@ -30,6 +30,9 @@ export default function MentorDashboard() {
   const [profile, setProfile] = useState(null)
   const [profileLoading, setProfileLoading] = useState(false)
   const [explainingRelId, setExplainingRelId] = useState(null)
+  const [respondingTo, setRespondingTo] = useState(null)
+  const [messageDraft, setMessageDraft] = useState({})
+  const [sendingTo, setSendingTo] = useState(null)
 
   useEffect(() => {
     if (!user?.id) return
@@ -40,6 +43,40 @@ export default function MentorDashboard() {
       .catch(err => toast.error(err.message))
       .finally(() => setLoading(false))
   }, [user?.id])
+
+  const reloadRecommendations = async () => {
+    if (!user?.id) return
+    const data = await api.getMentorRecommendations(user.id)
+    setRecommendations(data.recommendations || [])
+  }
+
+  const handleRespond = async (relId, responseStatus) => {
+    setRespondingTo(relId + responseStatus)
+    try {
+      await api.respondToRequest({ relationship_id: relId, response: responseStatus })
+      toast.success(responseStatus === 'accepted' ? 'Connected with participant!' : 'Request declined')
+      await reloadRecommendations()
+    } catch (err) {
+      toast.error(err.message)
+    } finally {
+      setRespondingTo(null)
+    }
+  }
+
+  const handleSendMessage = async (relId) => {
+    const text = (messageDraft[relId] || '').trim()
+    if (!text) return
+    setSendingTo(relId)
+    try {
+      await api.sendMessage({ relationship_id: relId, sender: 'mentor', text })
+      setMessageDraft(d => ({ ...d, [relId]: '' }))
+      await reloadRecommendations()
+    } catch (err) {
+      toast.error(err.message)
+    } finally {
+      setSendingTo(null)
+    }
+  }
 
   const loadProfile = async () => {
     if (profile || !user?.id) return
@@ -103,7 +140,14 @@ export default function MentorDashboard() {
             <div className="section-subtitle">Participants matched to your expertise</div>
 
             {recommendations.map(rec => {
-              const status = rec.status === 'assigned' ? 'assigned' : 'recommended'
+              const statusLabel = {
+                accepted: 'Connected',
+                requested: 'Pending',
+                assigned: 'Assigned',
+                recommended: 'Recommended',
+                declined: 'Declined',
+              }[rec.status] || rec.status
+              const statusClass = rec.status === 'accepted' || rec.status === 'assigned' ? 'assigned' : rec.status === 'requested' ? 'pending' : 'recommended'
               return (
                 <div key={rec.id} className="match-card">
                   <div className="match-card-header">
@@ -116,8 +160,8 @@ export default function MentorDashboard() {
                         {rec.participant?.location && ` • ${rec.participant.location}`}
                       </div>
                     </div>
-                    <span className={`score-pill ${status}`}>
-                      {status === 'assigned' ? 'Assigned' : 'Recommended'} • {Math.round(rec.match_score * 100)}%
+                    <span className={`score-pill ${statusClass}`}>
+                      {statusLabel} • {Math.round(rec.match_score * 100)}%
                     </span>
                   </div>
 
@@ -152,6 +196,58 @@ export default function MentorDashboard() {
                           ✓ {o.type?.replace(/_/g, ' ')}: {o.details}
                         </div>
                       ))}
+                    </div>
+                  )}
+
+                  {rec.status === 'requested' && (
+                    <div style={{ background: 'rgba(251,188,4,0.06)', padding: '12px', borderRadius: '8px', marginBottom: '12px', border: '1px solid rgba(251,188,4,0.2)' }}>
+                      <div style={{ fontSize: '13px', color: 'var(--text-primary)', marginBottom: '8px', fontWeight: 500 }}>
+                        🔔 {rec.participant?.name} wants to connect with you
+                      </div>
+                      <div className="flex gap-8">
+                        <button className="btn btn-success btn-sm" disabled={!!respondingTo}
+                          onClick={() => handleRespond(rec.id, 'accepted')}>
+                          {respondingTo === rec.id + 'accepted' ? '...' : '✓ Accept'}
+                        </button>
+                        <button className="btn btn-danger btn-sm" disabled={!!respondingTo}
+                          onClick={() => handleRespond(rec.id, 'declined')}>
+                          {respondingTo === rec.id + 'declined' ? '...' : '✗ Decline'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {rec.status === 'accepted' && (
+                    <div style={{ background: 'rgba(52,168,83,0.06)', padding: '12px', borderRadius: '8px', marginBottom: '12px', border: '1px solid rgba(52,168,83,0.2)' }}>
+                      <div className="text-xs text-muted font-semibold mb-8" style={{ textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                        💬 Messages
+                      </div>
+                      {rec.messages?.length > 0 ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '10px', maxHeight: '200px', overflowY: 'auto' }}>
+                          {rec.messages.map((m, i) => (
+                            <div key={i} style={{
+                              alignSelf: m.sender === 'mentor' ? 'flex-end' : 'flex-start',
+                              maxWidth: '80%',
+                              background: m.sender === 'mentor' ? 'var(--blue-glow)' : 'rgba(255,255,255,0.04)',
+                              border: `1px solid ${m.sender === 'mentor' ? 'rgba(66,133,244,0.2)' : 'var(--border)'}`,
+                              padding: '6px 10px', borderRadius: '10px', fontSize: '13px',
+                              color: 'var(--text-primary)',
+                            }}>
+                              {m.text}
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '10px' }}>No messages yet — start the conversation.</div>
+                      )}
+                      <div className="flex gap-8">
+                        <input className="form-control" placeholder="Write a message..." style={{ flex: 1 }}
+                          value={messageDraft[rec.id] || ''}
+                          onChange={e => setMessageDraft(d => ({ ...d, [rec.id]: e.target.value }))}
+                          onKeyDown={e => { if (e.key === 'Enter') handleSendMessage(rec.id) }} />
+                        <button className="btn btn-primary btn-sm" disabled={sendingTo === rec.id || !messageDraft[rec.id]?.trim()}
+                          onClick={() => handleSendMessage(rec.id)}>Send</button>
+                      </div>
                     </div>
                   )}
 

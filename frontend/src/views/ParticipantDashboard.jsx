@@ -5,6 +5,7 @@ import { api } from '../api.js'
 import toast from 'react-hot-toast'
 import MatchCard from '../components/MatchCard.jsx'
 import MatchExplainerModal from '../components/MatchExplainerModal.jsx'
+import ProgrammeDetailModal from '../components/ProgrammeDetailModal.jsx'
 
 function Navbar() {
   const { user, logout } = useAuth()
@@ -36,9 +37,18 @@ export default function ParticipantDashboard() {
   const [allProgrammes, setAllProgrammes] = useState([])
   const [allMentors, setAllMentors] = useState([])
   const [browseLoading, setBrowseLoading] = useState(false)
+  const [progSearch, setProgSearch] = useState('')
+  const [progFilters, setProgFilters] = useState({ location: '', difficulty: '', focus: '' })
+  const [mentorSearch, setMentorSearch] = useState('')
+  const [mentorFilters, setMentorFilters] = useState({ expertise: '', location: '' })
   const [profile, setProfile] = useState(null)
   const [profileLoading, setProfileLoading] = useState(false)
   const [explainingRelId, setExplainingRelId] = useState(null)
+  const [requestingMentor, setRequestingMentor] = useState(null)
+  const [feedbackPending, setFeedbackPending] = useState(null)
+  const [detailProgrammeId, setDetailProgrammeId] = useState(null)
+  const [messageDraft, setMessageDraft] = useState({})
+  const [sendingTo, setSendingTo] = useState(null)
 
   useEffect(() => {
     if (!user?.id) return
@@ -83,6 +93,54 @@ export default function ParticipantDashboard() {
     }
   }
 
+  const reloadRecommendations = async () => {
+    if (!user?.id) return
+    const recs = await api.getRecommendations(user.id)
+    setData(recs)
+  }
+
+  const handleRequestMentor = async (mentorId, relId) => {
+    if (!user?.id) return
+    setRequestingMentor(relId || mentorId)
+    try {
+      await api.requestMentor({ participant_id: user.id, mentor_id: mentorId })
+      toast.success('Mentor request sent! 🎉')
+      await reloadRecommendations()
+    } catch (err) {
+      toast.error(err.message || 'Could not send request')
+    } finally {
+      setRequestingMentor(null)
+    }
+  }
+
+  const handleSendMessage = async (relId) => {
+    const text = (messageDraft[relId] || '').trim()
+    if (!text) return
+    setSendingTo(relId)
+    try {
+      await api.sendMessage({ relationship_id: relId, sender: 'participant', text })
+      setMessageDraft(d => ({ ...d, [relId]: '' }))
+      await reloadRecommendations()
+    } catch (err) {
+      toast.error(err.message)
+    } finally {
+      setSendingTo(null)
+    }
+  }
+
+  const handleFeedback = async (relId, thumbs) => {
+    setFeedbackPending(relId + thumbs)
+    try {
+      await api.submitMatchFeedback({ relationship_id: relId, sender: 'participant', thumbs })
+      toast.success(thumbs === 'up' ? 'Thanks — glad it was useful!' : 'Got it — we\'ll improve future matches')
+      await reloadRecommendations()
+    } catch (err) {
+      toast.error(err.message)
+    } finally {
+      setFeedbackPending(null)
+    }
+  }
+
   const handleRegister = async (programmeId, relId) => {
     if (!user?.id) {
       toast.error('User not logged in')
@@ -115,6 +173,13 @@ export default function ParticipantDashboard() {
     <div className="app-shell">
       <Navbar />
       <MatchExplainerModal relationshipId={explainingRelId} onClose={() => setExplainingRelId(null)} />
+      <ProgrammeDetailModal
+        programmeId={detailProgrammeId}
+        onClose={() => setDetailProgrammeId(null)}
+        currentUserId={user?.id}
+        onRegister={detailProgrammeId ? () => handleRegister(detailProgrammeId, `detail-${detailProgrammeId}`).then(() => setDetailProgrammeId(null)) : undefined}
+        registering={registering === `detail-${detailProgrammeId}`}
+      />
       <div className="container" style={{ padding: '32px 24px', maxWidth: '860px', margin: '0 auto' }}>
 
         {/* Header */}
@@ -186,6 +251,9 @@ export default function ParticipantDashboard() {
                     onRegister={() => handleRegister(rec.to_entity.id, rec.id)}
                     registering={registering === rec.id}
                     onExplain={() => setExplainingRelId(rec.id)}
+                    onFeedback={(thumbs) => handleFeedback(rec.id, thumbs)}
+                    feedbackPending={feedbackPending === rec.id + 'up' ? 'up' : feedbackPending === rec.id + 'down' ? 'down' : null}
+                    onOpenDetail={() => setDetailProgrammeId(rec.to_entity.id)}
                   />
                 ))}
 
@@ -206,35 +274,102 @@ export default function ParticipantDashboard() {
                       </div>
                     )}
 
-                    {data.mentor_recommendations?.map(rec => (
-                      <div key={rec.id} className="match-card">
-                        <div className="match-header">
-                          <div className="match-title">{rec.mentor?.name}</div>
-                          <div className="match-score">{Math.round(rec.match_score * 100)}%</div>
-                        </div>
-                        <div className="match-tags">
-                          {rec.mentor?.expertise?.slice(0, 3).map((e, i) => (
-                            <span key={i} className="tag">{e}</span>
-                          ))}
-                          {rec.mentor?.years && <span className="tag">📅 {rec.mentor.years} yrs</span>}
-                        </div>
-                        <div className="match-reasoning">
-                          <strong>Why:</strong> {rec.reasoning}
-                        </div>
-                        {rec.fit_factors?.length > 0 && (
-                          <div className="match-factors">
-                            {rec.fit_factors.map((f, i) => (
-                              <span key={i} className="factor">✓ {f}</span>
-                            ))}
+                    {data.mentor_recommendations?.map(rec => {
+                      const myFeedback = rec.feedback?.find(f => f.sender === 'participant')
+                      return (
+                        <div key={rec.id} className="match-card">
+                          <div className="match-header">
+                            <div className="match-title">{rec.mentor?.name}</div>
+                            <div className="flex gap-8 items-center">
+                              {rec.status === 'requested' && <span className="status-badge pending">Requested</span>}
+                              {rec.status === 'accepted' && <span className="status-badge assigned">Connected ✓</span>}
+                              <div className="match-score">{Math.round(rec.match_score * 100)}%</div>
+                            </div>
                           </div>
-                        )}
-                        <div style={{ marginTop: '12px' }}>
-                          <button className="btn btn-secondary btn-sm" onClick={() => setExplainingRelId(rec.id)}>
-                            🤖 How was this matched?
-                          </button>
+                          <div className="match-tags">
+                            {rec.mentor?.expertise?.slice(0, 3).map((e, i) => (
+                              <span key={i} className="tag">{e}</span>
+                            ))}
+                            {rec.mentor?.years && <span className="tag">📅 {rec.mentor.years} yrs</span>}
+                          </div>
+                          <div className="match-reasoning">
+                            <strong>Why:</strong> {rec.reasoning}
+                          </div>
+                          {rec.fit_factors?.length > 0 && (
+                            <div className="match-factors">
+                              {rec.fit_factors.map((f, i) => (
+                                <span key={i} className="factor">✓ {f}</span>
+                              ))}
+                            </div>
+                          )}
+
+                          {rec.status === 'accepted' && (
+                            <div style={{ background: 'rgba(52,168,83,0.06)', padding: '12px', borderRadius: '8px', marginTop: '12px', border: '1px solid rgba(52,168,83,0.2)' }}>
+                              <div className="text-xs text-muted font-semibold mb-8" style={{ textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                💬 Messages
+                              </div>
+                              {rec.messages?.length > 0 ? (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '10px', maxHeight: '200px', overflowY: 'auto' }}>
+                                  {rec.messages.map((m, i) => (
+                                    <div key={i} style={{
+                                      alignSelf: m.sender === 'participant' ? 'flex-end' : 'flex-start',
+                                      maxWidth: '80%',
+                                      background: m.sender === 'participant' ? 'var(--blue-glow)' : 'rgba(255,255,255,0.04)',
+                                      border: `1px solid ${m.sender === 'participant' ? 'rgba(66,133,244,0.2)' : 'var(--border)'}`,
+                                      padding: '6px 10px', borderRadius: '10px', fontSize: '13px',
+                                      color: 'var(--text-primary)',
+                                    }}>
+                                      {m.text}
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '10px' }}>No messages yet — start the conversation.</div>
+                              )}
+                              <div className="flex gap-8">
+                                <input className="form-control" placeholder="Write a message..." style={{ flex: 1 }}
+                                  value={messageDraft[rec.id] || ''}
+                                  onChange={e => setMessageDraft(d => ({ ...d, [rec.id]: e.target.value }))}
+                                  onKeyDown={e => { if (e.key === 'Enter') handleSendMessage(rec.id) }} />
+                                <button className="btn btn-primary btn-sm" disabled={sendingTo === rec.id || !messageDraft[rec.id]?.trim()}
+                                  onClick={() => handleSendMessage(rec.id)}>Send</button>
+                              </div>
+                            </div>
+                          )}
+
+                          <div className="flex gap-8 items-center" style={{ marginTop: '12px', flexWrap: 'wrap' }}>
+                            <button className="btn btn-secondary btn-sm" onClick={() => setExplainingRelId(rec.id)}>
+                              🤖 How was this matched?
+                            </button>
+                            {!myFeedback && (
+                              <div className="flex gap-8">
+                                <button className="btn btn-secondary btn-sm" disabled={feedbackPending === rec.id + 'up'}
+                                  onClick={() => handleFeedback(rec.id, 'up')} title="Useful match">👍</button>
+                                <button className="btn btn-secondary btn-sm" disabled={feedbackPending === rec.id + 'down'}
+                                  onClick={() => handleFeedback(rec.id, 'down')} title="Not a good match">👎</button>
+                              </div>
+                            )}
+                            {myFeedback && (
+                              <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                                You said {myFeedback.thumbs === 'up' ? '👍' : '👎'}
+                              </span>
+                            )}
+                            {rec.status === 'recommended' && (
+                              <button className="btn btn-primary btn-sm" style={{ marginLeft: 'auto' }}
+                                disabled={requestingMentor === rec.id}
+                                onClick={() => handleRequestMentor(rec.mentor.id, rec.id)}>
+                                {requestingMentor === rec.id ? 'Sending...' : '+ Request Mentor'}
+                              </button>
+                            )}
+                            {rec.status === 'requested' && (
+                              <span style={{ fontSize: '12px', color: 'var(--text-muted)', marginLeft: 'auto' }}>
+                                Awaiting mentor response
+                              </span>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      )
+                    })}
                   </div>
                 )}
               </div>
@@ -243,10 +378,47 @@ export default function ParticipantDashboard() {
         )}
 
         {/* All Programmes Tab */}
-        {activeTab === 'programmes' && (
+        {activeTab === 'programmes' && (() => {
+          const locations = [...new Set(allProgrammes.map(p => p.location).filter(Boolean))].sort()
+          const difficulties = [...new Set(allProgrammes.map(p => p.difficulty).filter(Boolean))].sort()
+          const focuses = [...new Set(allProgrammes.flatMap(p => p.focus || []))].sort()
+          const filteredProgs = allProgrammes.filter(p => {
+            if (progSearch && !(`${p.name} ${p.description || ''}`.toLowerCase().includes(progSearch.toLowerCase()))) return false
+            if (progFilters.location && p.location !== progFilters.location) return false
+            if (progFilters.difficulty && p.difficulty !== progFilters.difficulty) return false
+            if (progFilters.focus && !(p.focus || []).includes(progFilters.focus)) return false
+            return true
+          })
+          const hasFilters = progSearch || progFilters.location || progFilters.difficulty || progFilters.focus
+          return (
           <div className="fade-in">
             <div className="section-title mb-8">All Programmes</div>
             <div className="section-subtitle">Browse all available programmes and sign up</div>
+
+            {!browseLoading && allProgrammes.length > 0 && (
+              <div style={{ marginBottom: '20px' }}>
+                <input className="form-control" placeholder="🔍 Search programmes..."
+                  value={progSearch} onChange={e => setProgSearch(e.target.value)}
+                  style={{ marginBottom: '10px' }} />
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+                  <FilterDropdown label="Location" value={progFilters.location} options={locations}
+                    onChange={v => setProgFilters(f => ({ ...f, location: v }))} />
+                  <FilterDropdown label="Difficulty" value={progFilters.difficulty} options={difficulties}
+                    onChange={v => setProgFilters(f => ({ ...f, difficulty: v }))} />
+                  <FilterDropdown label="Focus" value={progFilters.focus} options={focuses}
+                    onChange={v => setProgFilters(f => ({ ...f, focus: v }))} />
+                  {hasFilters && (
+                    <button className="btn btn-secondary btn-sm"
+                      onClick={() => { setProgSearch(''); setProgFilters({ location: '', difficulty: '', focus: '' }) }}>
+                      Clear
+                    </button>
+                  )}
+                  <span style={{ marginLeft: 'auto', fontSize: '12px', color: 'var(--text-muted)' }}>
+                    {filteredProgs.length} of {allProgrammes.length}
+                  </span>
+                </div>
+              </div>
+            )}
 
             {browseLoading ? (
               <div className="loading-state">
@@ -258,9 +430,14 @@ export default function ParticipantDashboard() {
                 <div className="empty-icon">📚</div>
                 <p>No programmes available.</p>
               </div>
+            ) : filteredProgs.length === 0 ? (
+              <div className="empty-state">
+                <div className="empty-icon">🔍</div>
+                <p>No programmes match your filters.</p>
+              </div>
             ) : (
               <div>
-                {allProgrammes.map(prog => (
+                {filteredProgs.map(prog => (
                   <div key={prog.id} className="match-card">
                     <div className="match-header">
                       <div>
@@ -283,26 +460,67 @@ export default function ParticipantDashboard() {
                         ))}
                       </div>
                     )}
-                    <button
-                      className="btn btn-primary btn-sm"
-                      onClick={() => handleRegister(prog.id, `browse-${prog.id}`)}
-                      disabled={registering === `browse-${prog.id}`}
-                      style={{ marginTop: '12px' }}
-                    >
-                      {registering === `browse-${prog.id}` ? 'Registering...' : '+ Register'}
-                    </button>
+                    <div className="flex gap-8" style={{ marginTop: '12px' }}>
+                      <button
+                        className="btn btn-secondary btn-sm"
+                        onClick={() => setDetailProgrammeId(prog.id)}
+                      >
+                        👁 View details
+                      </button>
+                      <button
+                        className="btn btn-primary btn-sm"
+                        onClick={() => handleRegister(prog.id, `browse-${prog.id}`)}
+                        disabled={registering === `browse-${prog.id}`}
+                      >
+                        {registering === `browse-${prog.id}` ? 'Registering...' : '+ Register'}
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
             )}
           </div>
-        )}
+          )
+        })()}
 
         {/* All Mentors Tab */}
-        {activeTab === 'mentors' && (
+        {activeTab === 'mentors' && (() => {
+          const expertiseOpts = [...new Set(allMentors.flatMap(m => m.expertise || []))].sort()
+          const locationOpts = [...new Set(allMentors.map(m => m.location).filter(Boolean))].sort()
+          const filteredMentors = allMentors.filter(m => {
+            if (mentorSearch && !(`${m.name} ${m.bio || ''}`.toLowerCase().includes(mentorSearch.toLowerCase()))) return false
+            if (mentorFilters.expertise && !(m.expertise || []).includes(mentorFilters.expertise)) return false
+            if (mentorFilters.location && m.location !== mentorFilters.location) return false
+            return true
+          })
+          const hasFilters = mentorSearch || mentorFilters.expertise || mentorFilters.location
+          return (
           <div className="fade-in">
             <div className="section-title mb-8">All Mentors</div>
             <div className="section-subtitle">Browse all available mentors and connect</div>
+
+            {!browseLoading && allMentors.length > 0 && (
+              <div style={{ marginBottom: '20px' }}>
+                <input className="form-control" placeholder="🔍 Search mentors..."
+                  value={mentorSearch} onChange={e => setMentorSearch(e.target.value)}
+                  style={{ marginBottom: '10px' }} />
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+                  <FilterDropdown label="Expertise" value={mentorFilters.expertise} options={expertiseOpts}
+                    onChange={v => setMentorFilters(f => ({ ...f, expertise: v }))} />
+                  <FilterDropdown label="Location" value={mentorFilters.location} options={locationOpts}
+                    onChange={v => setMentorFilters(f => ({ ...f, location: v }))} />
+                  {hasFilters && (
+                    <button className="btn btn-secondary btn-sm"
+                      onClick={() => { setMentorSearch(''); setMentorFilters({ expertise: '', location: '' }) }}>
+                      Clear
+                    </button>
+                  )}
+                  <span style={{ marginLeft: 'auto', fontSize: '12px', color: 'var(--text-muted)' }}>
+                    {filteredMentors.length} of {allMentors.length}
+                  </span>
+                </div>
+              </div>
+            )}
 
             {browseLoading ? (
               <div className="loading-state">
@@ -314,9 +532,14 @@ export default function ParticipantDashboard() {
                 <div className="empty-icon">👥</div>
                 <p>No mentors available.</p>
               </div>
+            ) : filteredMentors.length === 0 ? (
+              <div className="empty-state">
+                <div className="empty-icon">🔍</div>
+                <p>No mentors match your filters.</p>
+              </div>
             ) : (
               <div>
-                {allMentors.map(mentor => (
+                {filteredMentors.map(mentor => (
                   <div key={mentor.id} className="match-card">
                     <div className="match-header">
                       <div>
@@ -343,12 +566,21 @@ export default function ParticipantDashboard() {
                         ))}
                       </div>
                     )}
+                    <button
+                      className="btn btn-primary btn-sm"
+                      style={{ marginTop: '12px' }}
+                      disabled={requestingMentor === mentor.id}
+                      onClick={() => handleRequestMentor(mentor.id)}
+                    >
+                      {requestingMentor === mentor.id ? 'Sending...' : '+ Request Mentor'}
+                    </button>
                   </div>
                 ))}
               </div>
             )}
           </div>
-        )}
+          )
+        })()}
 
         {/* My Programmes Tab */}
         {activeTab === 'registered' && (
@@ -374,7 +606,7 @@ export default function ParticipantDashboard() {
                   </thead>
                   <tbody>
                     {myProgrammes.map(rel => (
-                      <tr key={rel.id}>
+                      <tr key={rel.id} style={{ cursor: 'pointer' }} onClick={() => setDetailProgrammeId(rel.to_entity?.id)}>
                         <td style={{ color: 'var(--text-primary)', fontWeight: 500 }}>
                           {rel.programme?.name || rel.to_entity?.id}
                         </td>
@@ -471,5 +703,21 @@ export default function ParticipantDashboard() {
         )}
       </div>
     </div>
+  )
+}
+
+function FilterDropdown({ label, value, options, onChange }) {
+  return (
+    <select
+      className="form-control"
+      value={value}
+      onChange={e => onChange(e.target.value)}
+      style={{ width: 'auto', padding: '6px 10px', fontSize: '12px' }}
+    >
+      <option value="">All {label}</option>
+      {options.map(opt => (
+        <option key={opt} value={opt}>{opt}</option>
+      ))}
+    </select>
   )
 }

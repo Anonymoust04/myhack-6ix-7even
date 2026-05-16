@@ -42,4 +42,13 @@ urlpatterns = [
 
     # ── Match explainer ──────────────────────────
     path("explain-match/<str:rel_id>", views.explain_match, name="explain-match"),
+
+    # ── Programme detail ─────────────────────────
+    path("programme/<str:programme_id>", views.programme_detail, name="programme-detail"),
+
+    # ── Mentor connection flow ───────────────────
+    path("request-mentor", views.request_mentor, name="request-mentor"),
+    path("respond-to-request", views.respond_to_request, name="respond-to-request"),
+    path("send-message", views.send_message, name="send-message"),
+    path("match-feedback", views.submit_match_feedback, name="match-feedback"),
 ]

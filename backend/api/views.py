@@ -153,6 +153,121 @@ def get_recommendations(request, participant_id):
 
 
 @api_view(["POST"])
+def request_mentor(request):
+    """
+    Participant requests to connect with a mentor.
+    If a recommended relationship exists, flip to "requested".
+    Otherwise create a new participant_mentor relationship with status "requested".
+    """
+    participant_id = request.data.get("participant_id")
+    mentor_id = request.data.get("mentor_id")
+    if not participant_id or not mentor_id:
+        return Response({"error": "participant_id and mentor_id required"}, status=status.HTTP_400_BAD_REQUEST)
+
+    existing = fs.get_relationships({
+        "from_entity.id": participant_id,
+        "to_entity.id": mentor_id,
+    })
+
+    # Block re-requests when already requested/accepted
+    for rel in existing:
+        if rel.get("status") in ("requested", "accepted"):
+            return Response({"error": f"Already {rel['status']}"}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Promote a recommended relationship in place
+    for rel in existing:
+        if rel.get("status") == "recommended":
+            fs.update_relationship_status(rel["id"], "requested")
+            return Response({"id": rel["id"], "message": "Mentor request sent!"}, status=status.HTTP_200_OK)
+
+    # Otherwise create fresh
+    rel_data = {
+        "type": "participant_mentor",
+        "from_entity": {"id": participant_id, "type": "participant"},
+        "to_entity": {"id": mentor_id, "type": "mentor"},
+        "status": "requested",
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "engagement": {"hours": 0, "meetings": 0},
+        "outcomes": [],
+        "messages": [],
+        "match_score": 0.0,
+        "reasoning": "Participant directly requested this mentor",
+        "fit_factors": [],
+        "warnings": [],
+    }
+    rel_id = fs.create_relationship(rel_data)
+    return Response({"id": rel_id, "message": "Mentor request sent!"}, status=status.HTTP_201_CREATED)
+
+
+@api_view(["POST"])
+def respond_to_request(request):
+    """
+    Mentor accepts or declines a participant connection request.
+    Body: {relationship_id, response: "accepted" | "declined"}
+    """
+    rel_id = request.data.get("relationship_id")
+    response_status = request.data.get("response")
+    if response_status not in ("accepted", "declined"):
+        return Response({"error": "response must be 'accepted' or 'declined'"}, status=status.HTTP_400_BAD_REQUEST)
+    if not rel_id:
+        return Response({"error": "relationship_id required"}, status=status.HTTP_400_BAD_REQUEST)
+
+    fs.update_relationship_status(rel_id, response_status)
+    return Response({"message": f"Request {response_status}"})
+
+
+@api_view(["POST"])
+def send_message(request):
+    """
+    Append a message to a relationship's thread.
+    Body: {relationship_id, sender: "participant" | "mentor", text}
+    """
+    rel_id = request.data.get("relationship_id")
+    sender = request.data.get("sender")
+    text = (request.data.get("text") or "").strip()
+    if not rel_id or sender not in ("participant", "mentor") or not text:
+        return Response({"error": "relationship_id, sender, and text required"}, status=status.HTTP_400_BAD_REQUEST)
+
+    rel = fs.get_relationship(rel_id)
+    if not rel:
+        return Response({"error": "Relationship not found"}, status=status.HTTP_404_NOT_FOUND)
+    if rel.get("status") != "accepted":
+        return Response({"error": "Cannot message until request is accepted"}, status=status.HTTP_400_BAD_REQUEST)
+
+    message = {
+        "sender": sender,
+        "text": text,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    fs.append_message(rel_id, message)
+    return Response({"message": "Sent", "data": message})
+
+
+@api_view(["POST"])
+def submit_match_feedback(request):
+    """
+    Participant or mentor leaves a thumbs up/down on a match.
+    Body: {relationship_id, sender: "participant" | "mentor", thumbs: "up" | "down", note?}
+    Stored on relationship.feedback array.
+    """
+    rel_id = request.data.get("relationship_id")
+    sender = request.data.get("sender")
+    thumbs = request.data.get("thumbs")
+    note = (request.data.get("note") or "").strip()
+    if not rel_id or sender not in ("participant", "mentor") or thumbs not in ("up", "down"):
+        return Response({"error": "relationship_id, sender, thumbs required"}, status=status.HTTP_400_BAD_REQUEST)
+
+    fb = {
+        "sender": sender,
+        "thumbs": thumbs,
+        "note": note,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    fs.append_feedback(rel_id, fb)
+    return Response({"message": "Feedback saved", "data": fb})
+
+
+@api_view(["POST"])
 def register_programme(request):
     """
     Participant registers for a programme directly (no admin approval needed).
@@ -549,6 +664,65 @@ def get_mentor_recommendations(request, mentor_id):
     if not result["recommendations"]:
         return Response({"error": "Mentor not found"}, status=status.HTTP_404_NOT_FOUND)
     return Response(result)
+
+
+@api_view(["GET"])
+def programme_detail(request, programme_id):
+    """
+    Programme with enriched info: description, focus, participants, mentors involved.
+    """
+    programme = fs.get_programme(programme_id)
+    if not programme:
+        return Response({"error": "Programme not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    # Registered/recommended participants
+    rels = fs.get_relationships({"to_entity.id": programme_id})
+    participants = []
+    for rel in rels:
+        if rel.get("type") != "participant_programme":
+            continue
+        if rel.get("status") not in ("registered", "recommended", "approved", "assigned"):
+            continue
+        p = fs.get_participant(rel["from_entity"]["id"])
+        if p:
+            participants.append({
+                "id": p["id"],
+                "name": p.get("name"),
+                "type": p.get("type"),
+                "experience_level": p.get("experience_level"),
+                "location": p.get("location"),
+                "skills": p.get("skills", []),
+                "status": rel.get("status"),
+                "match_score": rel.get("match_score"),
+            })
+
+    # Mentors whose expertise overlaps programme focus (lightweight discovery)
+    all_mentors = fs.get_all_mentors()
+    focus_set = set(s.lower() for s in programme.get("focus", []))
+    relevant_mentors = []
+    for m in all_mentors:
+        m_exp = set(s.lower() for s in m.get("expertise", []))
+        overlap = sorted(focus_set & m_exp)
+        if overlap:
+            relevant_mentors.append({
+                "id": m["id"],
+                "name": m.get("name"),
+                "expertise": m.get("expertise", []),
+                "years": m.get("years"),
+                "matching_focus": overlap,
+            })
+    relevant_mentors.sort(key=lambda m: -len(m["matching_focus"]))
+
+    return Response({
+        "programme": programme,
+        "participants": participants,
+        "mentors": relevant_mentors[:5],
+        "stats": {
+            "registered_count": sum(1 for p in participants if p["status"] in ("registered", "approved", "assigned")),
+            "recommended_count": sum(1 for p in participants if p["status"] == "recommended"),
+            "capacity": programme.get("capacity"),
+        },
+    })
 
 
 @api_view(["GET"])

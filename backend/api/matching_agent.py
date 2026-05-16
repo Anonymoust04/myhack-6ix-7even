@@ -367,7 +367,7 @@ def get_recommendations_for_mentor(mentor_id: str) -> dict:
     recommendations = []
 
     for rel in relationships:
-        if rel.get("type") == "participant_mentor" and rel.get("status") in ("recommended", "assigned"):
+        if rel.get("type") == "participant_mentor" and rel.get("status") in ("recommended", "assigned", "requested", "accepted"):
             participant = fs.get_participant(rel["from_entity"]["id"])
             if participant:
                 recommendations.append({**rel, "participant": participant})
@@ -399,15 +399,14 @@ def get_recommendations_for_participant(participant_id: str) -> dict:
     mentor_recommendations = []
 
     for rel in relationships:
-        if rel.get("status") == "recommended":
-            if rel.get("type") == "participant_programme":
-                programme = fs.get_programme(rel["to_entity"]["id"])
-                if programme:
-                    programme_recommendations.append({**rel, "programme": programme})
-            elif rel.get("type") == "participant_mentor":
-                mentor = fs.get_mentor(rel["to_entity"]["id"])
-                if mentor:
-                    mentor_recommendations.append({**rel, "mentor": mentor})
+        if rel.get("type") == "participant_programme" and rel.get("status") == "recommended":
+            programme = fs.get_programme(rel["to_entity"]["id"])
+            if programme:
+                programme_recommendations.append({**rel, "programme": programme})
+        elif rel.get("type") == "participant_mentor" and rel.get("status") in ("recommended", "requested", "accepted"):
+            mentor = fs.get_mentor(rel["to_entity"]["id"])
+            if mentor:
+                mentor_recommendations.append({**rel, "mentor": mentor})
 
     # Sort by score descending
     programme_recommendations.sort(key=lambda r: r.get("match_score", 0), reverse=True)
