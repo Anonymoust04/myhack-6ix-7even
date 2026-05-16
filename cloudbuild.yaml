@@ -1,0 +1,48 @@
+# cloudbuild.yaml
+steps:
+  # Build the backend Docker image
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-t'
+      - 'asia-southeast1-docker.pkg.dev/$PROJECT_ID/ecolink/backend:$COMMIT_SHA'
+      - './backend'
+
+  # Push to Artifact Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - 'asia-southeast1-docker.pkg.dev/$PROJECT_ID/ecolink/backend:$COMMIT_SHA'
+
+  # Deploy to Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'ecolink-backend'
+      - '--image=asia-southeast1-docker.pkg.dev/$PROJECT_ID/ecolink/backend:$COMMIT_SHA'
+      - '--region=asia-southeast1'
+      - '--platform=managed'
+      - '--allow-unauthenticated'
+      - '--set-secrets=GEMINI_API_KEY=gemini-api-key:latest,DJANGO_SECRET_KEY=django-secret-key:latest'
+
+  # Build and deploy frontend to Firebase Hosting
+  - name: 'node:18'
+    dir: 'frontend'
+    entrypoint: npm
+    args: ['install']
+
+  - name: 'node:18'
+    dir: 'frontend'
+    entrypoint: npm
+    args: ['run', 'build']
+
+  - name: 'gcr.io/cloud-builders/firebase'
+    args: ['deploy', '--only', 'hosting', '--project=$PROJECT_ID']
+
+images:
+  - 'asia-southeast1-docker.pkg.dev/$PROJECT_ID/ecolink/backend:$COMMIT_SHA'
+
+options:
+  logging: CLOUD_LOGGING_ONLY
