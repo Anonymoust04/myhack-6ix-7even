@@ -1,26 +1,25 @@
 """
-Gemini API wrapper for EcoLink.
+Groq API wrapper for EcoLink.
 
-Uses the google-generativeai Python SDK for:
-  - Embedding generation (profile vectorisation)
+Uses the Groq Python SDK for:
   - Match scoring + reasoning
   - Personalised summary generation
   - Analytics / cohort insights
+
+Note: Embeddings are still generated via Gemini (handled separately)
+because Groq's embedding model differs and we need 768-dim vectors
+for Firestore vector indexes.
 """
 import os
 import json
 import time
-import google.generativeai as genai
+from groq import Groq
 from dotenv import load_dotenv
-from google.api_core import exceptions
 
 load_dotenv()
 
-genai.configure(api_key=os.environ["GEMINI_API_KEY"])
-
-# Use the latest Flash model for speed in hackathon context
-_model = genai.GenerativeModel("gemini-2.0-flash")
-_embedding_model = "models/gemini-embedding-2"
+_client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
+_model = "llama-3.3-70b-versatile"
 
 
 def retry_with_backoff(retries=3, backoff_in_seconds=2):
@@ -30,15 +29,16 @@ def retry_with_backoff(retries=3, backoff_in_seconds=2):
             while True:
                 try:
                     return func(*args, **kwargs)
-                except exceptions.ResourceExhausted as e:
-                    if x == retries:
-                        raise e
-                    sleep = (backoff_in_seconds * 2 ** x)
-                    print(f"Rate limit hit. Retrying in {sleep}s...")
-                    time.sleep(sleep)
-                    x += 1
                 except Exception as e:
-                    raise e
+                    if "rate_limit" in str(e).lower() or "429" in str(e) or "quota" in str(e).lower():
+                        if x == retries:
+                            raise e
+                        sleep = (backoff_in_seconds * 2 ** x)
+                        print(f"Rate limit hit. Retrying in {sleep}s...")
+                        time.sleep(sleep)
+                        x += 1
+                    else:
+                        raise e
         return wrapper
     return decorator
 
@@ -48,9 +48,12 @@ def generate_embedding(text: str) -> list[float]:
     """
     Generate a vector embedding for a profile text.
     Used for Firestore vector search.
+    Still uses Gemini API because we need 768-dimensional vectors.
     """
+    import google.generativeai as genai
+    genai.configure(api_key=os.environ.get("GEMINI_API_KEY", ""))
     result = genai.embed_content(
-        model=_embedding_model,
+        model="models/gemini-embedding-2",
         content=text,
         task_type="RETRIEVAL_DOCUMENT",
         output_dimensionality=768,
@@ -70,7 +73,7 @@ def _clean_for_json(obj):
 @retry_with_backoff()
 def score_match(entity_a: dict, entity_b: dict, entity_types: tuple, past_outcomes: list = None) -> dict:
     """
-    Ask Gemini to score the fit between two ecosystem entities.
+    Ask Groq to score the fit between two ecosystem entities.
 
     Returns:
         {
@@ -84,27 +87,35 @@ def score_match(entity_a: dict, entity_b: dict, entity_types: tuple, past_outcom
     if past_outcomes:
         outcomes_context = f"\n\nHistorical outcomes from similar matches:\n{json.dumps(past_outcomes, indent=2)}"
 
+    name_a = entity_a.get("name", "Unknown")
+    name_b = entity_b.get("name", "Unknown")
+
     prompt = f"""You are an expert ecosystem coordinator evaluating match quality between ecosystem actors.
 
-Entity A ({entity_types[0]}):
+{entity_types[0].title()} ({name_a}):
 {json.dumps(_clean_for_json(entity_a), indent=2)}
 
-Entity B ({entity_types[1]}):
+{entity_types[1].title()} ({name_b}):
 {json.dumps(_clean_for_json(entity_b), indent=2)}
 {outcomes_context}
 
-Score the match quality from 0.0 to 1.0 and explain your reasoning.
+Evaluate the match quality between {name_a} and {name_b}. Score from 0.0 to 1.0 and explain your reasoning using their actual names, not "Entity A" or "Entity B".
 
 Respond ONLY with valid JSON in this exact format:
 {{
   "score": <float between 0 and 1>,
-  "reasoning": "<2-3 sentence explanation>",
+  "reasoning": "<2-3 sentence explanation using actual names>",
   "fit_factors": ["<factor 1>", "<factor 2>", "<factor 3>"],
   "warnings": ["<any mismatch warnings, empty list if none>"]
 }}"""
 
-    response = _model.generate_content(prompt)
-    raw = response.text.strip()
+    response = _client.chat.completions.create(
+        model=_model,
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0.3,
+        max_tokens=500
+    )
+    raw = response.choices[0].message.content.strip()
 
     # Strip markdown code fences if present
     if raw.startswith("```"):
@@ -140,8 +151,13 @@ Write a warm, encouraging 3-sentence personalised summary explaining:
 
 Keep it personal, specific, and under 80 words. Do not use bullet points."""
 
-    response = _model.generate_content(prompt)
-    return response.text.strip()
+    response = _client.chat.completions.create(
+        model=_model,
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0.7,
+        max_tokens=150
+    )
+    return response.choices[0].message.content.strip()
 
 
 @retry_with_backoff()
@@ -162,5 +178,10 @@ Generate 3-5 actionable insights for programme administrators. Focus on:
 
 Format as a clear numbered list. Be specific with data points where possible."""
 
-    response = _model.generate_content(prompt)
-    return response.text.strip()
+    response = _client.chat.completions.create(
+        model=_model,
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0.5,
+        max_tokens=500
+    )
+    return response.choices[0].message.content.strip()

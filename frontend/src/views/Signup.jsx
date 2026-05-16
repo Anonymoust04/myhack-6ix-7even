@@ -20,6 +20,7 @@ export default function Signup() {
     expertise: '', years: '', availability: '', bio: '',
   })
   const [createdId, setCreatedId] = useState(null)
+  const [signupResult, setSignupResult] = useState(null)
 
   const handleRoleSelect = (r) => { setRole(r); setStep(1) }
 
@@ -44,6 +45,7 @@ export default function Signup() {
         }
         const res = await api.registerParticipant(payload)
         setCreatedId(res.id)
+        setSignupResult(res)
         toast.success('Profile created!')
       } else if (role === 'mentor') {
         if (!form.name || !form.years) return toast.error('Name and years experience are required')
@@ -58,6 +60,7 @@ export default function Signup() {
         }
         const res = await api.uploadMentors(payload)
         setCreatedId(res.ids[0])
+        setSignupResult(res)
         toast.success('Mentor profile created!')
       }
       setStep(2)
@@ -226,18 +229,106 @@ export default function Signup() {
 
         {/* Step 2: Success */}
         {step === 2 && (
-          <div className="fade-in" style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: '56px', marginBottom: '16px' }}>🎉</div>
-            <div className="section-title mb-8">You're in!</div>
-            <div className="section-subtitle mb-24">
-              Your profile has been created and AI is generating your personalised recommendations.
+          <div className="fade-in">
+            <div style={{ textAlign: 'center', marginBottom: '28px' }}>
+              <div style={{ fontSize: '56px', marginBottom: '16px' }}>🎉</div>
+              <div className="section-title mb-8">You're in!</div>
+              <div className="section-subtitle">
+                Your profile has been created. AI has matched you with opportunities below.
+              </div>
             </div>
-            <div className="ai-summary-box" style={{ textAlign: 'left', marginBottom: '24px' }}>
-              <div className="ai-summary-label"><span className="ai-icon">🤖</span> Profile ID</div>
-              <code style={{ fontSize: '13px', color: 'var(--blue-light)' }}>{createdId}</code>
-            </div>
+
+            {role === 'participant' && (
+              <>
+                {signupResult?.programme_matches && signupResult.programme_matches.length > 0 && (
+                  <>
+                    <div className="section-subtitle mb-12" style={{ textAlign: 'left', fontSize: '13px', fontWeight: '600', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>📚 Recommended Programmes</div>
+                    <div style={{ display: 'grid', gap: '12px', marginBottom: '20px' }}>
+                      {signupResult.programme_matches.slice(0, 3).map(m => (
+                        <div key={m.id} className="match-card" style={{ padding: '12px', border: '1px solid var(--border)' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
+                            <div>
+                              <div style={{ fontWeight: '600', marginBottom: '4px' }}>{m.programme?.name}</div>
+                              <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                                {m.programme?.focus?.join(', ')}
+                              </div>
+                            </div>
+                            <div style={{ background: 'var(--brand)', color: 'white', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: '600' }}>
+                              {(m.match_score * 100).toFixed(0)}%
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
+
+                {signupResult?.mentor_matches && signupResult.mentor_matches.length > 0 && (
+                  <>
+                    <div className="section-subtitle mb-12" style={{ textAlign: 'left', fontSize: '13px', fontWeight: '600', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>👥 Recommended Mentors</div>
+                    <div style={{ display: 'grid', gap: '12px', marginBottom: '20px' }}>
+                      {signupResult.mentor_matches.slice(0, 2).map(m => (
+                        <div key={m.id} className="match-card" style={{ padding: '12px', border: '1px solid var(--border)' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
+                            <div>
+                              <div style={{ fontWeight: '600', marginBottom: '4px' }}>{m.mentor?.name}</div>
+                              <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                                {m.mentor?.expertise?.join(', ')} • {m.mentor?.years} yrs
+                              </div>
+                            </div>
+                            <div style={{ background: 'var(--brand)', color: 'white', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: '600' }}>
+                              {(m.match_score * 100).toFixed(0)}%
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
+
+                {(!signupResult?.programme_matches || signupResult.programme_matches.length === 0) && (!signupResult?.mentor_matches || signupResult.mentor_matches.length === 0) && (
+                  <div className="ai-summary-box" style={{ textAlign: 'center', marginBottom: '24px' }}>
+                    <div className="section-subtitle">Your matches are being generated. Check your dashboard!</div>
+                  </div>
+                )}
+              </>
+            )}
+
+            {role === 'mentor' && (
+              <>
+                {signupResult?.mentor_matches && signupResult.mentor_matches.length > 0 && (
+                  <>
+                    <div className="section-subtitle mb-12" style={{ textAlign: 'left', fontSize: '13px', fontWeight: '600', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>🎓 Recommended Participants</div>
+                    <div style={{ display: 'grid', gap: '12px', marginBottom: '20px' }}>
+                      {signupResult.mentor_matches.slice(0, 3).map(m => (
+                        <div key={m.id} className="match-card" style={{ padding: '12px', border: '1px solid var(--border)' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
+                            <div>
+                              <div style={{ fontWeight: '600', marginBottom: '4px' }}>{m.participant?.name}</div>
+                              <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                                {m.participant?.skills?.slice(0, 2).join(', ')} • {m.participant?.experience_level}
+                              </div>
+                            </div>
+                            <div style={{ background: 'var(--brand)', color: 'white', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: '600' }}>
+                              {(m.match_score * 100).toFixed(0)}%
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
+
+                {(!signupResult?.mentor_matches || signupResult.mentor_matches.length === 0) && (
+                  <div className="ai-summary-box" style={{ textAlign: 'center', marginBottom: '24px' }}>
+                    <div className="section-subtitle">Your matches are being generated. Check your dashboard!</div>
+                  </div>
+                )}
+              </>
+            )}
+
             <button className="btn btn-primary w-full" onClick={handleEnterApp} style={{ justifyContent: 'center' }}>
-              View My Recommendations →
+              View My Dashboard →
             </button>
           </div>
         )}

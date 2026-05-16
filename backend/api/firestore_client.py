@@ -119,6 +119,13 @@ def create_mentor(data: dict) -> str:
     return ref.id
 
 
+def get_mentor(mentor_id: str) -> Optional[dict]:
+    doc = db.collection("mentors").document(mentor_id).get()
+    if doc.exists:
+        return {"id": doc.id, **_strip_embedding(doc.to_dict())}
+    return None
+
+
 def get_all_mentors() -> list[dict]:
     return [{"id": d.id, **_strip_embedding(d.to_dict())} for d in db.collection("mentors").stream()]
 
@@ -136,6 +143,11 @@ def create_company(data: dict) -> str:
     ref = db.collection("companies").document()
     ref.set(data)
     return ref.id
+
+
+def get_company(company_id: str) -> Optional[dict]:
+    doc = db.collection("companies").document(company_id).get()
+    return {"id": doc.id, **_strip_embedding(doc.to_dict())} if doc.exists else None
 
 
 def get_all_companies() -> list[dict]:
@@ -245,6 +257,18 @@ def find_nearest_programmes(embedding: list[float], top_k: int = 10) -> list[dic
 
 def find_nearest_mentors(embedding: list[float], top_k: int = 10) -> list[dict]:
     collection = db.collection("mentors")
+    results = collection.find_nearest(
+        vector_field="embedding",
+        query_vector=Vector(embedding),
+        distance_measure=DistanceMeasure.COSINE,
+        limit=top_k,
+    ).stream()
+    return [{"id": d.id, **_strip_embedding(d.to_dict())} for d in results]
+
+
+def find_nearest_participants(embedding: list[float], top_k: int = 10) -> list[dict]:
+    """Find nearest participants by embedding distance for mentor matching."""
+    collection = db.collection("participants")
     results = collection.find_nearest(
         vector_field="embedding",
         query_vector=Vector(embedding),

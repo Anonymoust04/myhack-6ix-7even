@@ -8,6 +8,7 @@ urlpatterns = [
     # ── Participant ──────────────────────────────
     path("register-participant", views.register_participant, name="register-participant"),
     path("recommendations/<str:participant_id>", views.get_recommendations, name="recommendations"),
+    path("mentor-recommendations/<str:mentor_id>", views.get_mentor_recommendations, name="mentor-recommendations"),
     path("register-programme", views.register_programme, name="register-programme"),
     path("my-programmes/<str:participant_id>", views.my_programmes, name="my-programmes"),
 
@@ -30,4 +31,12 @@ urlpatterns = [
     path("programmes", views.list_programmes, name="programmes"),
     path("mentors", views.list_mentors, name="mentors"),
     path("companies", views.list_companies, name="companies"),
+    path("participants", views.list_participants, name="participants"),
+
+    # ── Account lookup ───────────────────────────
+    path("find-account", views.find_account, name="find-account"),
+
+    # ── Profile ──────────────────────────────────
+    path("participant/<str:participant_id>", views.get_participant_profile, name="participant-profile"),
+    path("mentor/<str:mentor_id>", views.get_mentor_profile, name="mentor-profile"),
 ]

@@ -20,10 +20,11 @@ async function request(method, path, body) {
 
 export const api = {
   // Participants
-  registerParticipant: (data)            => request('POST', '/register-participant', data),
-  getRecommendations:  (participantId)   => request('GET',  `/recommendations/${participantId}`),
-  registerProgramme:   (data)            => request('POST', '/register-programme', data),
-  myProgrammes:        (participantId)   => request('GET',  `/my-programmes/${participantId}`),
+  registerParticipant:     (data)            => request('POST', '/register-participant', data),
+  getRecommendations:      (participantId)   => request('GET',  `/recommendations/${participantId}`),
+  getMentorRecommendations: (mentorId)       => request('GET',  `/mentor-recommendations/${mentorId}`),
+  registerProgramme:       (data)            => request('POST', '/register-programme', data),
+  myProgrammes:            (participantId)   => request('GET',  `/my-programmes/${participantId}`),
 
   // Admin
   createProgramme:       (data)   => request('POST', '/create-programme', data),
@@ -44,4 +45,11 @@ export const api = {
   listProgrammes: () => request('GET', '/programmes'),
   listMentors:    () => request('GET', '/mentors'),
   listCompanies:  () => request('GET', '/companies'),
+
+  // Profiles
+  getParticipantProfile: (id) => request('GET', `/participant/${id}`),
+  getMentorProfile:      (id) => request('GET', `/mentor/${id}`),
+
+  // Account lookup
+  findAccount: (name, role) => request('GET', `/find-account?name=${encodeURIComponent(name)}&role=${role}`),
 }

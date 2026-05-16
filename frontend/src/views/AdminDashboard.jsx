@@ -6,7 +6,7 @@ import toast from 'react-hot-toast'
 import ProgrammeForm from '../components/ProgrammeForm.jsx'
 import AnalyticsPanel from '../components/AnalyticsPanel.jsx'
 
-const TABS = ['Programmes', 'Upload Mentors', 'Run Matching', 'Review Matches', 'Analytics']
+const TABS = ['Programmes', 'Upload Mentors', 'Review Matches', 'Analytics']
 
 function Navbar() {
   const { user, logout } = useAuth()
@@ -166,90 +166,6 @@ function UploadMentorsTab() {
   )
 }
 
-// ── Run Matching Tab ────────────────────────────────────────────────────────
-function RunMatchingTab() {
-  const [programmes, setProgrammes] = useState([])
-  const [selectedProg, setSelectedProg] = useState('')
-  const [matchType, setMatchType] = useState('participant_programme')
-  const [loading, setLoading] = useState(false)
-  const [result, setResult] = useState(null)
-  const [elapsed, setElapsed] = useState(0)
-
-  useEffect(() => { api.listProgrammes().then(setProgrammes).catch(() => {}) }, [])
-
-  useEffect(() => {
-    if (!loading) return
-    const interval = setInterval(() => setElapsed(e => e + 1), 1000)
-    return () => clearInterval(interval)
-  }, [loading])
-
-  const handleRun = async () => {
-    setLoading(true)
-    setElapsed(0)
-    setResult(null)
-    try {
-      const payload = { type: matchType }
-      if (selectedProg) payload.programme_id = selectedProg
-      const isQuotaError = (err) => err.message.includes('quota') || err.message.includes('429') || err.message.includes('ResourceExhausted')
-      try {
-        const res = await api.runMatching(payload)
-        setResult(res)
-        toast.success(`Matching complete! ${res.matched} relationships created.`)
-      } catch (err) {
-        if (isQuotaError(err)) {
-          toast.error('Gemini quota reached. Wait a minute and try again, or enable billing.')
-        } else {
-          toast.error(err.message)
-        }
-      }
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  return (
-    <div>
-      <div className="section-title mb-8">Run Matching Agent</div>
-      <div className="section-subtitle">AI scores all entity pairs and creates recommended relationships</div>
-      <div className="card" style={{ maxWidth: 500 }}>
-        <div className="form-group">
-          <label className="form-label">Match Type</label>
-          <select className="form-control" value={matchType} onChange={e => setMatchType(e.target.value)}>
-            <option value="participant_programme">Participants → Programmes</option>
-            <option value="mentor_company">Mentors → Companies</option>
-          </select>
-        </div>
-        <div className="form-group">
-          <label className="form-label">Programme (optional — runs for all if blank)</label>
-          <select className="form-control" value={selectedProg} onChange={e => setSelectedProg(e.target.value)}>
-            <option value="">All programmes</option>
-            {programmes.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-          </select>
-        </div>
-        <button className="btn btn-primary w-full" onClick={handleRun} disabled={loading} style={{ justifyContent: 'center' }}>
-          {loading ? <>
-            <div className="spinner" style={{ width: 16, height: 16, borderWidth: 2 }} />
-            Running AI matching... (1–3 min)
-          </> : '🤖 Run Matching'}
-        </button>
-        {loading && (
-          <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '12px', textAlign: 'center' }}>
-            ⏱ {elapsed}s elapsed — AI is scoring all pairs...
-          </div>
-        )}
-      </div>
-      {result && (
-        <div className="ai-summary-box mt-16 fade-in">
-          <div className="ai-summary-label"><span className="ai-icon">✅</span> Matching Complete</div>
-          <div className="ai-summary-text">
-            Created <strong style={{ color: 'var(--blue-light)' }}>{result.matched}</strong> recommended relationships above the 60% match threshold.
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
-
 // ── Review Matches Tab ──────────────────────────────────────────────────────
 function ReviewMatchesTab() {
   const [matches, setMatches] = useState([])
@@ -257,13 +173,23 @@ function ReviewMatchesTab() {
   const [loading, setLoading] = useState(true)
   const [pendingRegs, setPendingRegs] = useState([])
   const [acting, setActing] = useState(null)
+  const [names, setNames] = useState({})
+  const [expandedMatch, setExpandedMatch] = useState(null)
+
+  const getEntityName = (entity) => {
+    if (!entity) return 'Unknown'
+    return entity.name || entity.id?.slice(0, 12) + '...' || 'Unknown'
+  }
 
   const load = useCallback(() => {
     setLoading(true)
     Promise.all([
       api.getMatches({ status: filter }),
       api.getPendingRegistrations(),
-    ]).then(([m, regs]) => { setMatches(m); setPendingRegs(regs) })
+    ]).then(([m, regs]) => {
+      setMatches(m)
+      setPendingRegs(regs)
+    })
       .catch(err => toast.error(err.message))
       .finally(() => setLoading(false))
   }, [filter])
@@ -298,6 +224,41 @@ function ReviewMatchesTab() {
 
   return (
     <div>
+      {expandedMatch && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setExpandedMatch(null)}>
+          <div className="card" style={{ maxWidth: '600px', maxHeight: '80vh', overflow: 'auto', background: 'var(--bg-primary)', border: '1px solid var(--border)' }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontSize: '18px', fontWeight: 600, marginBottom: '16px' }}>Match Details</div>
+            <div style={{ marginBottom: '16px' }}>
+              <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '8px' }}>From</div>
+              <div style={{ fontSize: '15px', fontWeight: 500 }}>{getEntityName(expandedMatch.from_entity)}</div>
+            </div>
+            <div style={{ marginBottom: '16px' }}>
+              <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '8px' }}>To</div>
+              <div style={{ fontSize: '15px', fontWeight: 500 }}>{getEntityName(expandedMatch.to_entity)}</div>
+            </div>
+            <div style={{ marginBottom: '16px' }}>
+              <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '8px' }}>Match Score</div>
+              <span className={`score-pill ${expandedMatch.match_score >= 0.8 ? 'high' : expandedMatch.match_score >= 0.65 ? 'medium' : 'low'}`}>
+                {Math.round((expandedMatch.match_score || 0) * 100)}%
+              </span>
+            </div>
+            <div style={{ marginBottom: '16px' }}>
+              <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '8px' }}>Reasoning</div>
+              <div style={{ fontSize: '14px', lineHeight: '1.6', color: 'var(--text-secondary)' }}>{expandedMatch.reasoning}</div>
+            </div>
+            {expandedMatch.fit_factors?.length > 0 && (
+              <div style={{ marginBottom: '16px' }}>
+                <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '8px' }}>Fit Factors</div>
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                  {expandedMatch.fit_factors.map(f => <span key={f} className="fit-tag">{f.replace(/_/g, ' ')}</span>)}
+                </div>
+              </div>
+            )}
+            <button className="btn btn-secondary" onClick={() => setExpandedMatch(null)} style={{ width: '100%', justifyContent: 'center' }}>Close</button>
+          </div>
+        </div>
+      )}
+
       <div className="section-title mb-8">Review Matches</div>
       <div className="section-subtitle">Approve or reject AI-generated relationship recommendations</div>
 
@@ -323,8 +284,8 @@ function ReviewMatchesTab() {
               <tbody>
                 {pendingRegs.map(req => (
                   <tr key={req.id}>
-                    <td>{req.from_entity?.id}</td>
-                    <td>{req.to_entity?.id}</td>
+                    <td>{getEntityName(req.from_entity)}</td>
+                    <td>{getEntityName(req.to_entity)}</td>
                     <td style={{ fontSize: 11 }}>{new Date(req.created_at).toLocaleDateString()}</td>
                     <td>
                       <div className="flex gap-8">
@@ -346,7 +307,7 @@ function ReviewMatchesTab() {
       {loading ? <div className="loading-state"><div className="spinner" /></div> : (
         <div className="card">
           {matches.length === 0
-            ? <div className="empty-state"><div className="empty-icon">🔍</div><p>No {filter} matches. Run the matching agent first.</p></div>
+            ? <div className="empty-state"><div className="empty-icon">🔍</div><p>No {filter} matches. Matches are generated automatically when participants and mentors sign up.</p></div>
             : (
               <table className="data-table">
                 <thead>
@@ -355,16 +316,17 @@ function ReviewMatchesTab() {
                 <tbody>
                   {matches.map(m => (
                     <tr key={m.id}>
-                      <td style={{ color: 'var(--text-primary)' }}>{m.from_entity?.id?.slice(0, 12)}...</td>
-                      <td style={{ color: 'var(--text-primary)' }}>{m.to_entity?.id?.slice(0, 12)}...</td>
+                      <td style={{ color: 'var(--text-primary)' }}>{getEntityName(m.from_entity)}</td>
+                      <td style={{ color: 'var(--text-primary)' }}>{getEntityName(m.to_entity)}</td>
                       <td><span className="text-xs text-muted">{m.type?.replace('_', ' → ')}</span></td>
                       <td>
                         <span className={`score-pill ${m.match_score >= 0.8 ? 'high' : m.match_score >= 0.65 ? 'medium' : 'low'}`}>
                           {Math.round((m.match_score || 0) * 100)}%
                         </span>
                       </td>
-                      <td style={{ maxWidth: 240, fontSize: 12, color: 'var(--text-muted)' }}>
-                        {m.reasoning?.slice(0, 100)}...
+                      <td style={{ maxWidth: 300, fontSize: 12, color: 'var(--blue-light)', cursor: 'pointer' }}
+                        onClick={() => setExpandedMatch(m)}>
+                        {m.reasoning?.slice(0, 120)}... <span style={{ fontSize: 10 }}>📖</span>
                       </td>
                       <td>
                         {m.status === 'recommended' && (
@@ -398,7 +360,7 @@ export default function AdminDashboard() {
       <div className="container" style={{ padding: '32px 24px', maxWidth: '1100px', margin: '0 auto' }}>
         <div className="page-header">
           <div className="page-title">Admin Dashboard</div>
-          <div className="page-subtitle">Manage programmes, run AI matching, and review results</div>
+          <div className="page-subtitle">Manage programmes and review AI-generated matches</div>
         </div>
 
         <div className="tabs">
@@ -412,9 +374,8 @@ export default function AdminDashboard() {
         <div className="fade-in" key={activeTab}>
           {activeTab === 0 && <ProgrammesTab />}
           {activeTab === 1 && <UploadMentorsTab />}
-          {activeTab === 2 && <RunMatchingTab />}
-          {activeTab === 3 && <ReviewMatchesTab />}
-          {activeTab === 4 && <AnalyticsPanel />}
+          {activeTab === 2 && <ReviewMatchesTab />}
+          {activeTab === 3 && <AnalyticsPanel />}
         </div>
       </div>
     </div>
