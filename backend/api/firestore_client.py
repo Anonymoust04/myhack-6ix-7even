@@ -24,12 +24,14 @@ load_dotenv()
 # Initialise Firebase Admin SDK (idempotent)
 if not firebase_admin._apps:
     key_path = os.environ.get("FIREBASE_SERVICE_ACCOUNT_KEY", "./serviceAccountKey.json")
+    project_id = os.environ.get("FIREBASE_PROJECT_ID")
+    options = {"projectId": project_id} if project_id else {}
     if os.path.exists(key_path):
         cred = credentials.Certificate(key_path)
-        firebase_admin.initialize_app(cred)
+        firebase_admin.initialize_app(cred, options)
     else:
         # Fallback: use Application Default Credentials (for Cloud Run / GCP environments)
-        firebase_admin.initialize_app()
+        firebase_admin.initialize_app(options=options)
 
 db = firestore.client()
 
