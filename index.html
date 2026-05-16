@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EcoLink AI — Ecosystem Linkage Platform</title>
+    <meta name="description" content="AI-enabled platform architecture for automating ecosystem relationships using Google Cloud, AI Agents, and MCP Servers.">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="app">
+        <canvas id="bgCanvas"></canvas>
+        <header class="header">
+            <div class="logo">
+                <div class="logo-icon">
+                    <svg viewBox="0 0 40 40" fill="none">
+                        <circle cx="20" cy="20" r="18" stroke="url(#logoGrad)" stroke-width="2.5"/>
+                        <circle cx="12" cy="15" r="3" fill="#34A853"/>
+                        <circle cx="28" cy="15" r="3" fill="#4285F4"/>
+                        <circle cx="20" cy="28" r="3" fill="#FBBC04"/>
+                        <line x1="14" y1="16" x2="26" y2="16" stroke="#EA4335" stroke-width="1.5" stroke-dasharray="2 2"/>
+                        <line x1="13" y1="17" x2="19" y2="26" stroke="#EA4335" stroke-width="1.5" stroke-dasharray="2 2"/>
+                        <line x1="27" y1="17" x2="21" y2="26" stroke="#EA4335" stroke-width="1.5" stroke-dasharray="2 2"/>
+                        <defs><linearGradient id="logoGrad" x1="0" y1="0" x2="40" y2="40"><stop stop-color="#4285F4"/><stop offset="1" stop-color="#34A853"/></linearGradient></defs>
+                    </svg>
+                </div>
+                <span class="logo-text">EcoLink<span class="logo-ai">AI</span></span>
+            </div>
+            <nav class="nav">
+                <button class="nav-btn active" data-view="architecture">Architecture</button>
+                <button class="nav-btn" data-view="agents">AI Agents</button>
+                <button class="nav-btn" data-view="mcp">MCP Servers</button>
+                <button class="nav-btn" data-view="google">Google Cloud</button>
+                <button class="nav-btn" data-view="flow">Data Flow</button>
+            </nav>
+        </header>
+        <main class="main">
+            <!-- Architecture View -->
+            <section id="view-architecture" class="view active">
+                <div class="view-header">
+                    <h1>Platform Architecture</h1>
+                    <p class="subtitle">How AI Agents + MCP Servers automate ecosystem linkages on Google Cloud</p>
+                </div>
+                <div class="arch-grid">
+                    <div class="arch-layer" data-layer="actors">
+                        <div class="layer-badge">Layer 1</div>
+                        <div class="layer-icon">👥</div>
+                        <h3>Ecosystem Actors</h3>
+                        <p>First-class entities with structured profiles</p>
+                        <div class="layer-tags">
+                            <span class="tag tag-green">Companies</span>
+                            <span class="tag tag-blue">Mentors</span>
+                            <span class="tag tag-yellow">Partners</span>
+                            <span class="tag tag-red">Programmes</span>
+                        </div>
+                        <div class="google-svc">☁️ Firestore + Identity Platform</div>
+                    </div>
+                    <div class="arch-layer" data-layer="agents">
+                        <div class="layer-badge">Layer 2</div>
+                        <div class="layer-icon">🤖</div>
+                        <h3>Specialised AI Agents</h3>
+                        <p>Autonomous reasoning and orchestration</p>
+                        <div class="layer-tags">
+                            <span class="tag tag-blue">Verification</span>
+                            <span class="tag tag-green">Matching</span>
+                            <span class="tag tag-yellow">Assignment</span>
+                            <span class="tag tag-red">Engagement</span>
+                        </div>
+                        <div class="google-svc">☁️ Vertex AI Agent Builder + Gemini</div>
+                    </div>
+                    <div class="arch-layer" data-layer="mcp">
+                        <div class="layer-badge">Layer 3</div>
+                        <div class="layer-icon">🔌</div>
+                        <h3>MCP Servers</h3>
+                        <p>Governed tool APIs for relationship ops</p>
+                        <div class="layer-tags">
+                            <span class="tag tag-blue">createLink()</span>
+                            <span class="tag tag-green">scoreMatch()</span>
+                            <span class="tag tag-yellow">getCapacity()</span>
+                        </div>
+                        <div class="google-svc">☁️ Cloud Run + Apigee</div>
+                    </div>
+                    <div class="arch-layer" data-layer="data">
+                        <div class="layer-badge">Layer 4</div>
+                        <div class="layer-icon">📊</div>
+                        <h3>Learning Data Foundation</h3>
+                        <p>Feedback loops that improve over time</p>
+                        <div class="layer-tags">
+                            <span class="tag tag-blue">Outcomes</span>
+                            <span class="tag tag-green">Analytics</span>
+                            <span class="tag tag-yellow">ML Models</span>
+                        </div>
+                        <div class="google-svc">☁️ BigQuery + Vertex AI</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- AI Agents View -->
+            <section id="view-agents" class="view">
+                <div class="view-header">
+                    <h1>AI Agents — Deep Dive</h1>
+                    <p class="subtitle">Purpose-built agents powered by Vertex AI Agent Builder and Gemini</p>
+                </div>
+                <div class="agents-grid">
+                    <div class="agent-card">
+                        <div class="agent-status"><span class="pulse"></span> Active</div>
+                        <div class="agent-icon">🛡️</div>
+                        <h3>Verification Agent</h3>
+                        <p>Autonomously checks credentials, eligibility, and compliance for all ecosystem participants.</p>
+                        <div class="agent-tools">
+                            <h4>MCP Tools Used:</h4>
+                            <code>verifyCredential(participantId)</code>
+                            <code>checkEligibility(programmeId, profileId)</code>
+                            <code>flagCompliance(entityId, ruleSet)</code>
+                        </div>
+                        <div class="agent-google">
+                            <span>Identity Platform</span>
+                            <span>Document AI</span>
+                            <span>Cloud Functions</span>
+                        </div>
+                    </div>
+                    <div class="agent-card">
+                        <div class="agent-status"><span class="pulse green"></span> Active</div>
+                        <div class="agent-icon">🎯</div>
+                        <h3>Matching Agent</h3>
+                        <p>Scores mentor-company compatibility using profile similarity, sector alignment, and historical outcomes.</p>
+                        <div class="agent-tools">
+                            <h4>MCP Tools Used:</h4>
+                            <code>scoreCompatibility(profileA, profileB)</code>
+                            <code>rankCandidates(entityId, pool[])</code>
+                            <code>getEngagementHistory(linkId)</code>
+                        </div>
+                        <div class="agent-google">
+                            <span>Vertex AI Matching Engine</span>
+                            <span>Gemini Pro</span>
+                            <span>BigQuery ML</span>
+                        </div>
+                    </div>
+                    <div class="agent-card">
+                        <div class="agent-status"><span class="pulse yellow"></span> Active</div>
+                        <div class="agent-icon">📋</div>
+                        <h3>Assignment Agent</h3>
+                        <p>Allocates companies to programmes based on capacity, criteria fit, and geographic rules.</p>
+                        <div class="agent-tools">
+                            <h4>MCP Tools Used:</h4>
+                            <code>getCapacity(programmeId)</code>
+                            <code>createLink(companyId, programmeId)</code>
+                            <code>enforceQuota(regionId, limit)</code>
+                        </div>
+                        <div class="agent-google">
+                            <span>Cloud Workflows</span>
+                            <span>Firestore</span>
+                            <span>Pub/Sub</span>
+                        </div>
+                    </div>
+                    <div class="agent-card">
+                        <div class="agent-status"><span class="pulse red"></span> Monitoring</div>
+                        <div class="agent-icon">📈</div>
+                        <h3>Engagement Agent</h3>
+                        <p>Monitors relationship health over time, flags drift or inactivity, and recommends interventions.</p>
+                        <div class="agent-tools">
+                            <h4>MCP Tools Used:</h4>
+                            <code>trackMilestone(linkId, milestone)</code>
+                            <code>detectDrift(linkId, threshold)</code>
+                            <code>escalate(linkId, adminId, reason)</code>
+                        </div>
+                        <div class="agent-google">
+                            <span>Cloud Monitoring</span>
+                            <span>Looker</span>
+                            <span>Eventarc</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- MCP Servers View -->
+            <section id="view-mcp" class="view">
+                <div class="view-header">
+                    <h1>MCP Servers — Governed Tool APIs</h1>
+                    <p class="subtitle">Model Context Protocol servers hosted on Cloud Run, governed by Apigee</p>
+                </div>
+                <div class="mcp-layout">
+                    <div class="mcp-server">
+                        <div class="server-header">
+                            <span class="server-status">● Running</span>
+                            <h3>Relationship MCP Server</h3>
+                            <span class="server-runtime">Cloud Run</span>
+                        </div>
+                        <div class="server-tools">
+                            <div class="tool-item">
+                                <div class="tool-name">createLink</div>
+                                <div class="tool-sig"><code>(mentorId, companyId, programmeId) → LinkEntity</code></div>
+                                <div class="tool-desc">Creates a governed, auditable relationship between ecosystem actors.</div>
+                            </div>
+                            <div class="tool-item">
+                                <div class="tool-name">dissolveLink</div>
+                                <div class="tool-sig"><code>(linkId, reason) → AuditRecord</code></div>
+                                <div class="tool-desc">Ends a relationship with full audit trail and reason logging.</div>
+                            </div>
+                            <div class="tool-item">
+                                <div class="tool-name">getLinkHistory</div>
+                                <div class="tool-sig"><code>(entityId) → LinkEntity[]</code></div>
+                                <div class="tool-desc">Returns all past and present relationships for any actor.</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mcp-server">
+                        <div class="server-header">
+                            <span class="server-status">● Running</span>
+                            <h3>Scoring MCP Server</h3>
+                            <span class="server-runtime">Cloud Run</span>
+                        </div>
+                        <div class="server-tools">
+                            <div class="tool-item">
+                                <div class="tool-name">scoreCompatibility</div>
+                                <div class="tool-sig"><code>(profileA, profileB) → MatchScore</code></div>
+                                <div class="tool-desc">ML-powered compatibility score using Vertex AI embeddings.</div>
+                            </div>
+                            <div class="tool-item">
+                                <div class="tool-name">rankCandidates</div>
+                                <div class="tool-sig"><code>(entityId, candidatePool[]) → RankedList</code></div>
+                                <div class="tool-desc">Ranks a pool of candidates by fit, availability, and history.</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mcp-server">
+                        <div class="server-header">
+                            <span class="server-status">● Running</span>
+                            <h3>Programme MCP Server</h3>
+                            <span class="server-runtime">Cloud Run</span>
+                        </div>
+                        <div class="server-tools">
+                            <div class="tool-item">
+                                <div class="tool-name">getCapacity</div>
+                                <div class="tool-sig"><code>(programmeId) → CapacityInfo</code></div>
+                                <div class="tool-desc">Returns current capacity, enrolled count, and waitlist.</div>
+                            </div>
+                            <div class="tool-item">
+                                <div class="tool-name">enforceQuota</div>
+                                <div class="tool-sig"><code>(regionId, limit) → QuotaStatus</code></div>
+                                <div class="tool-desc">Checks and enforces geographic or demographic quotas.</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Google Cloud View -->
+            <section id="view-google" class="view">
+                <div class="view-header">
+                    <h1>Google Cloud Implementation Map</h1>
+                    <p class="subtitle">Every component mapped to a specific Google Cloud service</p>
+                </div>
+                <div class="google-grid">
+                    <div class="gcp-card">
+                        <div class="gcp-icon">✦</div>
+                        <h3>Gemini 2.5 Pro</h3>
+                        <p class="gcp-role">LLM backbone for all agents</p>
+                        <p>Powers reasoning, NLU, and multi-step planning in every agent.</p>
+                        <div class="gcp-usage">Agent reasoning · Profile analysis · NL queries</div>
+                    </div>
+                    <div class="gcp-card">
+                        <div class="gcp-icon">🤖</div>
+                        <h3>Vertex AI Agent Builder</h3>
+                        <p class="gcp-role">Agent orchestration framework</p>
+                        <p>Build, deploy, and manage specialised agents with tool-use and grounding.</p>
+                        <div class="gcp-usage">Agent definitions · Tool binding · Grounding</div>
+                    </div>
+                    <div class="gcp-card">
+                        <div class="gcp-icon">🚀</div>
+                        <h3>Cloud Run</h3>
+                        <p class="gcp-role">MCP Server hosting</p>
+                        <p>Serverless containers for each MCP server. Auto-scales with zero infra.</p>
+                        <div class="gcp-usage">MCP endpoints · API serving · Auto-scaling</div>
+                    </div>
+                    <div class="gcp-card">
+                        <div class="gcp-icon">🗄️</div>
+                        <h3>Firestore</h3>
+                        <p class="gcp-role">Relationship graph store</p>
+                        <p>Real-time NoSQL for actor profiles, link entities, and programme metadata.</p>
+                        <div class="gcp-usage">Profiles · Links · Real-time sync</div>
+                    </div>
+                    <div class="gcp-card">
+                        <div class="gcp-icon">📊</div>
+                        <h3>BigQuery</h3>
+                        <p class="gcp-role">Analytics and ML training data</p>
+                        <p>Engagement outcomes, matching model training, and Looker dashboards.</p>
+                        <div class="gcp-usage">Outcome data · ML training · Analytics</div>
+                    </div>
+                    <div class="gcp-card">
+                        <div class="gcp-icon">📡</div>
+                        <h3>Pub/Sub + Eventarc</h3>
+                        <p class="gcp-role">Event-driven communication</p>
+                        <p>Decouples agents via events. Link creation triggers downstream agents.</p>
+                        <div class="gcp-usage">Agent events · Triggers · Async workflows</div>
+                    </div>
+                    <div class="gcp-card">
+                        <div class="gcp-icon">🛡️</div>
+                        <h3>Apigee API Management</h3>
+                        <p class="gcp-role">MCP governance layer</p>
+                        <p>Rate limiting, auth, audit logging, and policy enforcement for MCP.</p>
+                        <div class="gcp-usage">Auth · Rate limits · Audit logs</div>
+                    </div>
+                    <div class="gcp-card">
+                        <div class="gcp-icon">⚡</div>
+                        <h3>Cloud Workflows</h3>
+                        <p class="gcp-role">Multi-step orchestration</p>
+                        <p>Coordinates multi-agent workflows: verification → matching → assignment.</p>
+                        <div class="gcp-usage">Agent chaining · Error handling · Retries</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Data Flow View -->
+            <section id="view-flow" class="view">
+                <div class="view-header">
+                    <h1>End-to-End Data Flow</h1>
+                    <p class="subtitle">How a mentor-company match flows through the system</p>
+                </div>
+                <div class="flow-container">
+                    <div class="flow-step" data-step="1">
+                        <div class="step-number">1</div>
+                        <div class="step-content">
+                            <h3>Company Registers</h3>
+                            <p>Profile submitted and stored in <strong>Firestore</strong>.</p>
+                            <div class="step-service">Firebase Auth + Firestore</div>
+                        </div>
+                    </div>
+                    <div class="flow-arrow">→</div>
+                    <div class="flow-step" data-step="2">
+                        <div class="step-number">2</div>
+                        <div class="step-content">
+                            <h3>Verification Agent</h3>
+                            <p><strong>Eventarc</strong> fires. Agent validates credentials via <strong>Document AI</strong>.</p>
+                            <div class="step-service">Vertex AI Agent + Document AI</div>
+                        </div>
+                    </div>
+                    <div class="flow-arrow">→</div>
+                    <div class="flow-step" data-step="3">
+                        <div class="step-number">3</div>
+                        <div class="step-content">
+                            <h3>Matching Agent Scores</h3>
+                            <p>Calls <code>scoreCompatibility()</code> via MCP using <strong>Vertex AI</strong> embeddings.</p>
+                            <div class="step-service">Gemini + Vertex AI Matching</div>
+                        </div>
+                    </div>
+                    <div class="flow-arrow">→</div>
+                    <div class="flow-step" data-step="4">
+                        <div class="step-number">4</div>
+                        <div class="step-content">
+                            <h3>Assignment Agent Links</h3>
+                            <p>Calls <code>createLink()</code> and <code>getCapacity()</code> to formalise the match.</p>
+                            <div class="step-service">Cloud Run MCP + Firestore</div>
+                        </div>
+                    </div>
+                    <div class="flow-arrow">→</div>
+                    <div class="flow-step" data-step="5">
+                        <div class="step-number">5</div>
+                        <div class="step-content">
+                            <h3>Engagement Monitored</h3>
+                            <p>Tracks milestones, flags drift. Outcomes feed <strong>BigQuery</strong>.</p>
+                            <div class="step-service">Cloud Monitoring + BigQuery ML</div>
+                        </div>
+                    </div>
+                    <div class="flow-arrow">→</div>
+                    <div class="flow-step" data-step="6">
+                        <div class="step-number">6</div>
+                        <div class="step-content">
+                            <h3>System Learns</h3>
+                            <p>Outcomes improve matching. Platform gets smarter every cohort.</p>
+                            <div class="step-service">BigQuery ML + Vertex AI</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="flow-feedback">
+                    <div class="feedback-label">♻️ Continuous Feedback Loop — Outcomes improve future matching</div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Detail Panel -->
+        <div class="detail-panel" id="detailPanel">
+            <button class="panel-close" id="panelClose">✕</button>
+            <div class="panel-content" id="panelContent"></div>
+        </div>
+    </div>
+    <script src="app.js"></script>
+</body>
+</html>
