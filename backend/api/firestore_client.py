@@ -35,6 +35,15 @@ db = firestore.client()
 
 
 # ──────────────────────────────────────────────
+# Helper: Strip Vector objects for JSON serialization
+# ──────────────────────────────────────────────
+
+def _strip_embedding(doc_dict: dict) -> dict:
+    """Remove 'embedding' field (Firestore Vector) from dict for JSON serialization."""
+    return {k: v for k, v in doc_dict.items() if k != "embedding"}
+
+
+# ──────────────────────────────────────────────
 # PARTICIPANTS
 # ──────────────────────────────────────────────
 
@@ -49,11 +58,24 @@ def create_participant(data: dict) -> str:
 def get_participant(participant_id: str) -> Optional[dict]:
     doc = db.collection("participants").document(participant_id).get()
     if doc.exists:
+        return {"id": doc.id, **_strip_embedding(doc.to_dict())}
+    return None
+
+
+def _get_participant_with_embedding(participant_id: str) -> Optional[dict]:
+    """Internal: fetch participant WITH embedding for matching operations."""
+    doc = db.collection("participants").document(participant_id).get()
+    if doc.exists:
         return {"id": doc.id, **doc.to_dict()}
     return None
 
 
 def get_all_participants() -> list[dict]:
+    return [{"id": d.id, **_strip_embedding(d.to_dict())} for d in db.collection("participants").stream()]
+
+
+def _get_all_participants_with_embeddings() -> list[dict]:
+    """Internal: fetch participants WITH embeddings for matching operations."""
     return [{"id": d.id, **d.to_dict()} for d in db.collection("participants").stream()]
 
 
@@ -72,14 +94,19 @@ def create_programme(data: dict) -> str:
 
 
 def get_all_programmes() -> list[dict]:
-    return [{"id": d.id, **d.to_dict()} for d in db.collection("programmes").stream()]
+    return [{"id": d.id, **_strip_embedding(d.to_dict())} for d in db.collection("programmes").stream()]
 
 
 def get_programme(programme_id: str) -> Optional[dict]:
     doc = db.collection("programmes").document(programme_id).get()
     if doc.exists:
-        return {"id": doc.id, **doc.to_dict()}
+        return {"id": doc.id, **_strip_embedding(doc.to_dict())}
     return None
+
+
+def _get_all_programmes_with_embeddings() -> list[dict]:
+    """Internal: fetch programmes WITH embeddings for matching operations."""
+    return [{"id": d.id, **d.to_dict()} for d in db.collection("programmes").stream()]
 
 
 # ──────────────────────────────────────────────
@@ -93,6 +120,11 @@ def create_mentor(data: dict) -> str:
 
 
 def get_all_mentors() -> list[dict]:
+    return [{"id": d.id, **_strip_embedding(d.to_dict())} for d in db.collection("mentors").stream()]
+
+
+def _get_all_mentors_with_embeddings() -> list[dict]:
+    """Internal: fetch mentors WITH embeddings for matching operations."""
     return [{"id": d.id, **d.to_dict()} for d in db.collection("mentors").stream()]
 
 
@@ -107,6 +139,11 @@ def create_company(data: dict) -> str:
 
 
 def get_all_companies() -> list[dict]:
+    return [{"id": d.id, **_strip_embedding(d.to_dict())} for d in db.collection("companies").stream()]
+
+
+def _get_all_companies_with_embeddings() -> list[dict]:
+    """Internal: fetch companies WITH embeddings for matching operations."""
     return [{"id": d.id, **d.to_dict()} for d in db.collection("companies").stream()]
 
 
@@ -121,6 +158,11 @@ def create_partner(data: dict) -> str:
 
 
 def get_all_partners() -> list[dict]:
+    return [{"id": d.id, **_strip_embedding(d.to_dict())} for d in db.collection("partners").stream()]
+
+
+def _get_all_partners_with_embeddings() -> list[dict]:
+    """Internal: fetch partners WITH embeddings for matching operations."""
     return [{"id": d.id, **d.to_dict()} for d in db.collection("partners").stream()]
 
 
@@ -137,7 +179,7 @@ def create_relationship(data: dict) -> str:
 def get_relationship(rel_id: str) -> Optional[dict]:
     doc = db.collection("relationships").document(rel_id).get()
     if doc.exists:
-        return {"id": doc.id, **doc.to_dict()}
+        return {"id": doc.id, **_strip_embedding(doc.to_dict())}
     return None
 
 
@@ -147,7 +189,7 @@ def get_relationships(filters: dict = None) -> list[dict]:
     if filters:
         for field, value in filters.items():
             query = query.where(field, "==", value)
-    return [{"id": d.id, **d.to_dict()} for d in query.stream()]
+    return [{"id": d.id, **_strip_embedding(d.to_dict())} for d in query.stream()]
 
 
 def update_relationship_status(rel_id: str, status: str):
@@ -174,7 +216,7 @@ def get_interest_requests(filters: dict = None) -> list[dict]:
     if filters:
         for field, value in filters.items():
             query = query.where(field, "==", value)
-    return [{"id": d.id, **d.to_dict()} for d in query.stream()]
+    return [{"id": d.id, **_strip_embedding(d.to_dict())} for d in query.stream()]
 
 
 def update_interest_request_status(req_id: str, status: str):
@@ -189,6 +231,7 @@ def find_nearest_programmes(embedding: list[float], top_k: int = 10) -> list[dic
     """
     Use Firestore's built-in vector search to find the nearest programmes
     by embedding distance. Requires a vector index on the 'embedding' field.
+    Returns stripped of embeddings for JSON serialization.
     """
     collection = db.collection("programmes")
     results = collection.find_nearest(
@@ -197,7 +240,7 @@ def find_nearest_programmes(embedding: list[float], top_k: int = 10) -> list[dic
         distance_measure=DistanceMeasure.COSINE,
         limit=top_k,
     ).stream()
-    return [{"id": d.id, **d.to_dict()} for d in results]
+    return [{"id": d.id, **_strip_embedding(d.to_dict())} for d in results]
 
 
 def find_nearest_mentors(embedding: list[float], top_k: int = 10) -> list[dict]:
@@ -208,7 +251,7 @@ def find_nearest_mentors(embedding: list[float], top_k: int = 10) -> list[dict]:
         distance_measure=DistanceMeasure.COSINE,
         limit=top_k,
     ).stream()
-    return [{"id": d.id, **d.to_dict()} for d in results]
+    return [{"id": d.id, **_strip_embedding(d.to_dict())} for d in results]
 
 
 # ──────────────────────────────────────────────

@@ -63,7 +63,7 @@ def generate_and_store_embedding(entity_id: str, entity_type: str, entity: dict)
     """Generate embedding for an entity and store it back in Firestore."""
     text = _profile_to_text(entity, entity_type)
     embedding = gemini.generate_embedding(text)
-    collection = f"{entity_type}s"
+    collection = f"{entity_type}s" if entity_type != "company" else "companies"
     import firebase_admin
     from firebase_admin import firestore as fs_admin
     db = fs_admin.client()
@@ -82,7 +82,7 @@ def run_participant_programme_matching(programme_id: str = None) -> list[dict]:
       2. Gemini scores each pair
       3. Stores relationships with score >= threshold
     """
-    participants = fs.get_all_participants()
+    participants = fs._get_all_participants_with_embeddings()
     past_outcomes = fs.get_completed_relationships()
     created = []
 
@@ -140,8 +140,8 @@ def run_mentor_company_matching(programme_id: str = None) -> list[dict]:
     """
     Match mentors to companies.
     """
-    mentors = fs.get_all_mentors()
-    companies = fs.get_all_companies()
+    mentors = fs._get_all_mentors_with_embeddings()
+    companies = fs._get_all_companies_with_embeddings()
     past_outcomes = fs.get_completed_relationships()
     created = []
 

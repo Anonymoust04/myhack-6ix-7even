@@ -270,6 +270,37 @@ class Command(BaseCommand):
             rel_id = fs.create_relationship(h)
             self.stdout.write(f"  ✓ Historical relationship: {h['type']} ({rel_id})")
 
+        # ── Demo Accounts ───────────────────────────────────────────────────
+        self.stdout.write("Creating specific demo accounts...")
+        
+        # 1. Demo Participant
+        demo_p = participants[0].copy()
+        demo_p["name"] = "Demo Participant (Sarah Tan)"
+        fs.db.collection("participants").document("demo_participant").set(demo_p)
+        agent.generate_and_store_embedding("demo_participant", "participant", demo_p)
+        fs.db.collection("users").document("demo_participant").set({
+            "role": "participant",
+            "entity_id": "demo_participant"
+        })
+
+        # 2. Demo Mentor
+        demo_m = mentors[0].copy()
+        demo_m["name"] = "Demo Mentor (Priya)"
+        fs.db.collection("mentors").document("demo_mentor").set(demo_m)
+        agent.generate_and_store_embedding("demo_mentor", "mentor", demo_m)
+        fs.db.collection("users").document("demo_mentor").set({
+            "role": "mentor",
+            "entity_id": "demo_mentor"
+        })
+
+        # 3. Demo Admin
+        fs.db.collection("users").document("demo_admin").set({
+            "role": "admin",
+            "email": "admin@ecolink.ai"
+        })
+
+        self.stdout.write("  ✓ Demo accounts created (demo_participant, demo_mentor, demo_admin)")
+
         self.stdout.write(self.style.SUCCESS(
             f"\n✅ Seeding complete!\n"
             f"   {len(programme_ids)} programmes\n"
